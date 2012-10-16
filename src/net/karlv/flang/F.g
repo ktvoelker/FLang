@@ -5,6 +5,14 @@ options {
   output = AST;
 }
 
+tokens {
+  FLAGS;
+  DECLS;
+  TYPE;
+  TYPE_PARAMS;
+  PARENT;
+}
+
 @header {
   package net.karlv.flang;
 }
@@ -14,20 +22,24 @@ options {
 }
 
 start
-  : file EOF
+  : file^ EOF!
+  ;
+
+is
+  : 'is'!
   ;
 
 file
-  : module_header decl*
-  | sig_header sig_decl*
+  : module_header^ decls
+  | sig_header^ sig_decls
   ;
 
 module_header 
-  : MODULE ID type_params (':' type)?
+  : MODULE^ ID type_params has_type?
   ;
 
 sig_header 
-  : 'sig' ID type_params
+  : 'sig'^ ID type_params
   ;
 
 module_app
@@ -38,20 +50,39 @@ module_prim
   : name
   | '(' module_app ')'
   ;
+ 
+decls
+  : decl* -> ^(DECLS decl*)
+  ;
   
 decl 
-  : OPEN module_app (('except' | 'only') (ID | EXPR_OP)+)?
-  | 'val' (ID | EXPR_OP) (':' type)? 'is' expr
-  | 'data' ('open' | 'closed')? ID type_params ('<:' type) 'is' type
-  | 'type' ID type_params 'is' type
-  | module_header 'is' (module_app | decl* END)
-  | sig_header 'is' sig_decl* END
+  : OPEN^ module_app (('except' | 'only') (ID | EXPR_OP)+)?
+  | 'val'^ id=(ID | EXPR_OP) has_type? is body=expr
+  | 'data'^ data_flags ID type_params parent_type is type
+  | 'type'^ ID type_params is type
+  | module_header^ is (module_app | decls END)
+  | sig_header^ is sig_decls END
+  ;
+
+data_flags
+  : 'open' -> ^(FLAGS 'open')
+  | 'closed' -> ^(FLAGS 'closed')
+  | -> ^(FLAGS)
+  ;
+  
+parent_type
+  : '<:' type -> ^(PARENT type)
+  | -> ^(PARENT)
+  ;
+
+sig_decls
+  : sig_decl* -> ^(DECLS sig_decl*)
   ;
   
 sig_decl 
-  : 'val' (ID | EXPR_OP) ':' type
+  : 'val' (ID | EXPR_OP) has_type
   | 'type' ID type_params (type_comp_op type)?
-  | MODULE ID type_params ':' type
+  | MODULE ID type_params has_type
   ;
 
 expr
@@ -59,7 +90,7 @@ expr
   ;
   
 local_bind
-  : ID '=' expr
+  : ID has_type? '=' expr
   ;
   
 local_binds 
@@ -114,15 +145,19 @@ do_stmt
   
 val_params 
   : ID
-  | '(' ID ':' type ')'
+  | '(' ID has_type ')'
+  ;
+
+has_type
+  : ':' type^
   ;
   
 type 
-  : type_quant? type_core constraint*
+  : type_quant? type_core constraint* -> ^(TYPE type_core type_quant? constraint*)
   ;
   
 type_quant 
-  : 'forall' ID+ '.'
+  : 'forall'^ ID+ '.'!
   ;
   
 type_core 
@@ -133,11 +168,11 @@ type_prim
   : '*'
   | name
   | '(' type_core ')'
-  | 'rec' ID ':' type (';' ID ':' type)* ';'? END
+  | 'rec' ID has_type (';' ID ':' type)* ';'? END
   ;
   
 constraint
-  :  WITH type_core type_comp_op type_core
+  :  WITH^ type_core type_comp_op type_core
   ;
   
 type_comp_op 
@@ -147,11 +182,12 @@ type_comp_op
   ;
   
 type_params 
-  : ID*
+  : ID* -> ^(TYPE_PARAMS ID*)
   ;
 
 name 
   : NAME
+  |	ID
   ;
 
 todo 
