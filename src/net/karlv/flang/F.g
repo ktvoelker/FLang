@@ -8,9 +8,53 @@ options {
 tokens {
   FLAGS;
   DECLS;
-  TYPE;
   TYPE_PARAMS;
   PARENT;
+  MODULE_APP;
+  SECTION;
+  OP_LEFT;
+  OP_RIGHT;
+  APP;
+  BIND;
+  PARAM;
+  PARAMS;
+  CLAUSE;
+  PAT;
+  IDENT;
+  FNTYPE;
+  TYPE = 'type';
+  VAL = 'val';
+  DATA = 'data';
+  SIG = 'sig';
+  LPAREN = '(';
+  RPAREN = ')';
+  OPEN = 'open';
+  CLOSED = 'closed';
+  EXCEPT = 'except';
+  ONLY = 'only';
+  IS = 'is';
+  REC = 'rec';
+  LET = 'let';
+  FN = 'fn';
+  CASE = 'case';
+  BEGIN = 'begin';
+  DO = 'do';
+  TODO = '?';
+  WHERE = 'where';
+  END = 'end';
+  IN = 'in';
+  OF = 'of';
+  MODULE = 'module';
+  WITH = 'with';
+  HAS_TYPE = ':';
+  SUBTYPE = '<:';
+  SUPERTYPE = ':>';
+  LARROW = '->';
+  RARROW = '<-';
+  SEP = ';';
+  AUTO = '*';
+  DOT = '.';
+  FORALL = 'forall';
 }
 
 @header {
@@ -25,10 +69,6 @@ start
   : file^ EOF!
   ;
 
-is
-  : 'is'!
-  ;
-
 file
   : module_header^ decls
   | sig_header^ sig_decls
@@ -39,16 +79,16 @@ module_header
   ;
 
 sig_header 
-  : 'sig'^ ID type_params
+  : SIG^ ID type_params
   ;
 
 module_app
-  : module_prim+
+  : module_prim+ -> ^(MODULE_APP module_prim+)
   ;
 
 module_prim
-  : name
-  | '(' module_app ')'
+  : name^
+  | LPAREN! module_app^ RPAREN!
   ;
  
 decls
@@ -56,22 +96,22 @@ decls
   ;
   
 decl 
-  : OPEN^ module_app (('except' | 'only') (ID | EXPR_OP)+)?
-  | 'val'^ id=(ID | EXPR_OP) has_type? is body=expr
-  | 'data'^ data_flags ID type_params parent_type is type
-  | 'type'^ ID type_params is type
-  | module_header^ is (module_app | decls END)
-  | sig_header^ is sig_decls END
+  : OPEN^ module_app ((EXCEPT | ONLY) (ID | EXPR_OP)+)?
+  | VAL^ id=(ID | EXPR_OP) has_type? IS! body=expr
+  | DATA^ data_flags ID type_params parent_type IS! type
+  | TYPE^ ID type_params IS! type
+  | module_header^ IS! (module_app | decls END!)
+  | sig_header^ IS! sig_decls END
   ;
 
 data_flags
-  : 'open' -> ^(FLAGS 'open')
-  | 'closed' -> ^(FLAGS 'closed')
+  : OPEN -> ^(FLAGS OPEN)
+  | CLOSED -> ^(FLAGS CLOSED)
   | -> ^(FLAGS)
   ;
   
 parent_type
-  : '<:' type -> ^(PARENT type)
+  : SUBTYPE type -> ^(PARENT type)
   | -> ^(PARENT)
   ;
 
@@ -80,76 +120,125 @@ sig_decls
   ;
   
 sig_decl 
-  : 'val' (ID | EXPR_OP) has_type
-  | 'type' ID type_params (type_comp_op type)?
+  : VAL (ID | EXPR_OP) has_type
+  | TYPE ID type_params (type_comp_op type)?
   | MODULE ID type_params has_type
   ;
 
 expr
-  : EXPR_OP? expr_prim+ (EXPR_OP expr_prim+)*
+  : expr_app expr_op* -> ^(OP_LEFT expr_app expr_op*)
+  | expr_op+ -> ^(SECTION expr_op+)
+  ;
+
+expr_op
+  : EXPR_OP expr_app -> ^(OP_RIGHT EXPR_OP expr_app)
+  ;
+
+expr_app
+  : expr_prim+ -> ^(APP expr_prim+)
+  ;
+
+expr_do
+  : expr_app_do expr_op_do* -> ^(OP_LEFT expr_app_do expr_op_do*)
+  | expr_op_do+ -> ^(SECTION expr_op_do+)
+  ;
+
+expr_op_do
+  : EXPR_OP expr_app_do -> ^(OP_RIGHT EXPR_OP expr_app_do)
+  ;
+
+expr_app_do
+  : expr_prim_do+ -> ^(APP expr_prim_do+)
   ;
   
 local_bind
-  : ID has_type? '=' expr
+  : ID maybe_has_type IS expr -> ^(BIND ID maybe_has_type expr)
   ;
   
 local_binds 
-  : local_bind (';' local_bind)* ';'?
+  : local_bind (SEP local_bind)* SEP? -> local_bind+
   ;
 
 expr_end 
-  : (WHERE local_binds)? END
+  : WHERE^ local_binds END!
+  | END -> ^(WHERE)
+  ;
+
+expr_prim_do
+  : FN^ val_param* RARROW! expr expr_end
+  | FN^ OF! fn_clause (SEP! fn_clause)* SEP!? expr_end
+  | REC local_binds expr_end
+  | CASE^ expr OF! case_clause (SEP! case_clause)* SEP!? expr_end
+  | BEGIN! expr^ expr_end!
+  | name^
+  | INT^
+  | FLOAT^
+  | STRING^
+  | CHAR^
+  | TODO^
   ;
 
 expr_prim
-  : FN val_params '->' expr expr_end
-  | FN OF (pats '->' expr ';') expr_end
-  | REC local_binds expr_end
-  | CASE expr OF (pat_app '->' expr ';') expr_end
-  | LPAREN expr RPAREN
-  | BEGIN expr expr_end
-  | DO do_stmt (';' do_stmt)* ';'? expr_end
-  | LET local_binds IN expr expr_end
-  | name
-  | INT
-  | FLOAT
-  | STRING
-  | CHAR
-  | TODO
+  : expr_prim_do^
+  | DO^ do_stmt (SEP! do_stmt)* SEP!? expr_end
+  | LET^ local_binds IN! expr expr_end
+  | LPAREN! expr^ RPAREN!
   ;
-  
-pats 
-  : pat+
+
+fn_clause
+  : pat_params RARROW expr -> ^(CLAUSE pat_params expr)
+  ;
+
+case_clause
+  : pat_app RARROW expr -> ^(CLAUSE pat_app expr)
+  ;
+
+pat_params
+  : pat_param+ -> ^(PARAMS pat_param+)
+  ;
+
+pat_param
+  : pat -> ^(PARAM pat)
   ;
 
 pat_app 
-  : pat+
+  : pat+ -> ^(APP pat+)
   ;
 
-pat : name
-  | '(' pat_app ')'
-  | simple_pat
+pat
+  : name^
+  | LPAREN! pat_app^ RPAREN!
+  | simple_pat^
   ;
 
 simple_pat 
-  : INT
-  | STRING
-  | CHAR
+  : INT^
+  | STRING^
+  | CHAR^
   ;
   
 do_stmt 
-  : LET pat_app '=' expr
-  | pat_app '<-' expr
-  // |  expr
+  : LET^ local_binds END!
+  | pat_app LARROW^ expr
+  | expr_do^
+  ;
+
+val_params
+  : val_param* -> ^(PARAMS val_param*)
   ;
   
-val_params 
-  : ID
-  | '(' ID has_type ')'
+val_param
+  : ID -> ^(PARAM ID)
+  | LPAREN ID has_type RPAREN -> ^(PARAM ID has_type)
+  ;
+
+maybe_has_type
+  : has_type^
+  | -> ^(HAS_TYPE)
   ;
 
 has_type
-  : ':' type^
+  : HAS_TYPE^ type
   ;
   
 type 
@@ -157,18 +246,22 @@ type
   ;
   
 type_quant 
-  : 'forall'^ ID+ '.'!
+  : FORALL^ ID+ DOT!
   ;
   
 type_core 
-  : type_prim+ ('->' type_prim+)*
+  : type_app (RARROW type_app)* -> ^(FNTYPE type_app+)
+  ;
+
+type_app
+  : type_prim+ -> ^(APP type_prim+)
   ;
   
 type_prim 
-  : '*'
-  | name
-  | '(' type_core ')'
-  | 'rec' ID has_type (';' ID ':' type)* ';'? END
+  : AUTO^
+  | name^
+  | LPAREN! type_core^ RPAREN!
+  | REC^ ID has_type (SEP! ID has_type)* SEP!? END!
   ;
   
 constraint
@@ -176,9 +269,9 @@ constraint
   ;
   
 type_comp_op 
-  : '<:'
-  | ':>'
-  | ':'
+  : SUBTYPE^
+  | SUPERTYPE^
+  | HAS_TYPE^
   ;
   
 type_params 
@@ -186,69 +279,8 @@ type_params
   ;
 
 name 
-  : NAME
-  |	ID
-  ;
-
-todo 
-  : 'todo'
-  ;
-
-LET : 'let'
-  ;
-  
-FN  :  'fn'
-  ;
-  
-CASE 
-  : 'case'
-  ;
-  
-REC : 'rec'
-  ;
-  
-BEGIN 
-  : 'begin'
-  ;
-  
-DO  : 'do'
-  ;
-  
-OPEN 
-  : 'open'
-  ;
-  
-TODO 
-  : '?'
-  ;
-  
-LPAREN 
-  : '('
-  ;
-  
-RPAREN 
-  : ')'
-  ;
-  
-WHERE 
-  : 'where'
-  ;
-
-END : 'end'
-  ;
-  
-IN  : 'in'
-  ;
-  
-OF  : 'of'
-  ;
-  
-MODULE 
-  : 'module'
-  ;
-  
-WITH 
-  : 'with'
+  : NAME -> ^(IDENT NAME)
+  |	ID -> ^(IDENT ID)
   ;
 
 ID  : ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*

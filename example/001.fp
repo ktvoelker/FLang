@@ -1,7 +1,7 @@
 
 module foo
 
-open quux
+open quux crux
 
 data open bar is baz
 
