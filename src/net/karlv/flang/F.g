@@ -22,6 +22,7 @@ tokens {
   PAT;
   IDENT;
   FNTYPE;
+  PRECEDENCE;
   TYPE = 'type';
   VAL = 'val';
   DATA = 'data';
@@ -55,6 +56,9 @@ tokens {
   AUTO = '*';
   DOT = '.';
   FORALL = 'forall';
+  INFIX = 'infix';
+  LEFT = 'left';
+  RIGHT = 'right';
 }
 
 @header {
@@ -97,11 +101,22 @@ decls
   
 decl 
   : OPEN^ module_app ((EXCEPT | ONLY) (ID | EXPR_OP)+)?
-  | VAL^ id=(ID | EXPR_OP) has_type? IS! body=expr
+  | VAL^ bind_name has_type? IS! expr
   | DATA^ data_flags ID type_params parent_type IS! type
   | TYPE^ ID type_params IS! type
   | module_header^ IS! (module_app | decls END!)
   | sig_header^ IS! sig_decls END
+  | INFIX^ infix_flags precedence bind_name+
+  ;
+
+infix_flags
+  : LEFT -> ^(FLAGS LEFT)
+  | RIGHT -> ^(FLAGS RIGHT)
+  ;
+  
+precedence
+  : ID -> ^(PRECEDENCE ID)
+  | INT -> ^(PRECEDENCE INT)
   ;
 
 data_flags
@@ -150,9 +165,14 @@ expr_op_do
 expr_app_do
   : expr_prim_do+ -> ^(APP expr_prim_do+)
   ;
+
+bind_name
+  : ID -> ^(IDENT ID)
+  | EXPR_OP -> ^(IDENT EXPR_OP)
+  ;
   
 local_bind
-  : ID maybe_has_type IS expr -> ^(BIND ID maybe_has_type expr)
+  : bind_name maybe_has_type IS expr -> ^(BIND ID maybe_has_type expr)
   ;
   
 local_binds 
