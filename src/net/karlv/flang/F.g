@@ -3,6 +3,7 @@ grammar F;
 options {
   language = Java;
   output = AST;
+  ASTLabelType = CommonTree;
 }
 
 tokens {
@@ -23,6 +24,7 @@ tokens {
   IDENT;
   FNTYPE;
   PRECEDENCE;
+  OPEN_QUAL;
   TYPE = 'type';
   VAL = 'val';
   DATA = 'data';
@@ -100,13 +102,17 @@ decls
   ;
   
 decl 
-  : OPEN^ module_app ((EXCEPT | ONLY) (ID | EXPR_OP)+)?
+  : OPEN module_app open_qual? -> ^(OPEN module_app open_qual?)
   | VAL^ bind_name has_type? IS! expr
   | DATA^ data_flags ID type_params parent_type IS! type
   | TYPE^ ID type_params IS! type
   | module_header^ IS! (module_app | decls END!)
   | sig_header^ IS! sig_decls END
   | INFIX^ infix_flags precedence bind_name+
+  ;
+
+open_qual
+  : mode=(EXCEPT | ONLY) names=(ID | EXPR_OP)+ -> ^(OPEN_QUAL $mode $names)
   ;
 
 infix_flags

@@ -6,6 +6,8 @@ import org.antlr.runtime.ANTLRStringStream
 import org.antlr.runtime.CommonTokenStream
 import org.antlr.runtime.ANTLRFileStream
 
+import net.karlv.flang.ast._
+
 object Main {
 
   def main(args: Array[String]): Unit = {
@@ -16,6 +18,8 @@ object Main {
     val x = p.start();
     val t = x.getTree();
     dumpTree(t, "");
+    val c = t.asInstanceOf[CommonTree];
+    println(ast.Module.parse(c));
   }
 
   def dumpTree(t: AnyRef, indent: String): Unit = {
