@@ -1,22 +1,21 @@
 package net.karlv.flang.ast
 
-case class Module(val id: IdDecl, val tyParams: List[IdDecl], val ty: Type, val decls: List[Decl]) {
-
-}
-
-object Module {
-
-  def parse(t: KTree): Module =
-    Module(IdDecl(t.first.get.text), t.tyParams, t.ty.getOrElse(Type.defaultModuleType), t.decls);
-
-}
-
-abstract class PrimModuleExpr {
+abstract class GenModPrim[+D] {
   
 }
 
-object PrimModuleExpr {
+case class ModRef(id: IdRef) extends GenModPrim[Nothing] {
   
-  def parse(t: KTree): PrimModuleExpr = null;
+}
 
+abstract class GenModule[D](decls: List[D]) extends GenModPrim[D] {
+  
+}
+
+case class Module(decls: List[Decl]) extends GenModule[Decl](decls) {
+  
+}
+
+case class Sig(decls: List[SigDecl]) extends GenModule[SigDecl](decls) {
+  
 }
