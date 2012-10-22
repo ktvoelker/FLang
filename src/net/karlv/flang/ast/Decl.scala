@@ -14,11 +14,11 @@ case class OpenQual(isOnly: Boolean, names: List[IdDecl]) {
 
 }
 
-abstract class Bind[P](id: IdDecl, ty: Type, body: Expr[P]) extends Decl {
+abstract class Bind[P](binder: Binder, body: Expr[P]) extends Decl {
   
 }
 
-case class BindVal(id: IdDecl, ty: Type, body: Expr[ValPrim]) extends Bind(id, ty, body) {
+case class BindVal(binder: Binder, body: Expr[ValPrim]) extends Bind(binder, body) {
   
 }
 
@@ -26,11 +26,11 @@ trait FileBind {
   
 }
 
-case class BindModule(id: IdDecl, ty: Type, body: Expr[ModPrim]) extends Bind(id, ty, body) with FileBind {
+case class BindModule(binder: Binder, body: Expr[ModPrim]) extends Bind(binder, body) with FileBind {
   
 }
 
-case class BindSig(id: IdDecl, ty: Type, body: Expr[SigPrim]) extends Bind(id, ty, body) with FileBind {
+case class BindSig(binder: Binder, body: Expr[SigPrim]) extends Bind(binder, body) with FileBind {
   
 }
 

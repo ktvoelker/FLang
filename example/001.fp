@@ -1,5 +1,5 @@
 
-module foo a b
+module foo
 
 open quux crux
 

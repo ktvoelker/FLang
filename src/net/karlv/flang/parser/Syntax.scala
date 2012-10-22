@@ -1,27 +1,39 @@
 package net.karlv.flang.parser
 
-import scala.util.parsing.combinator.Parsers
 import net.karlv.flang.ast._
+import java.io.InputStream
 import scala.util.parsing.combinator.ImplicitConversions
+import scala.util.parsing.combinator.syntactical.TokenParsers
+import scala.util.parsing.combinator.token
+import scala.util.parsing.input.Reader
+import java.io.InputStreamReader
+import scala.util.parsing.input.StreamReader
+import scala.util.parsing.input.PagedSeqReader
+import scala.collection.immutable.PagedSeq
 
-object Syntax extends Parsers with ImplicitConversions {
+object Syntax extends TokenParsers with ImplicitConversions {
   
-  type Elem = Token;
+  override type Tokens = token.Tokens;
   
-  def start: Parser[FileBind] = file <~ elem(TEndOfInput);
+  override val lexical = Lexicon;
   
-  def file: Parser[FileBind] =
-    moduleHeader ~ decls ^^ (x => BindModule(x._1._1, x._1._2, x._2)) |
-    sigHeader ~ sigDecls ^^ (x => BindSig(x._1._1, x._1._2, x._2));
+  def apply(is: InputStream): FileBind = this(Lexicon(is));
+
+  def apply(ts: Reader[Lexicon.Token]): FileBind = start(ts) match {
+    case Success(tree, _) => tree;
+    case failure: NoSuccess => sys.error(failure.toString());
+  };
+  
+  def start: Parser[FileBind] = phrase(file);
+  
+  def file: Parser[FileBind] = moduleHeader ~ decls ^^ BindModule | sigHeader ~ sigDecls ^^ BindSig;
   
   def kw(word: String): Parser[String] = elem(TKeyword(word)) ^^ (_.asInstanceOf[TKeyword].word);
   
-  def tok[T <: Token](implicit m: Manifest[T]): Parser[T] =
+  def tok[T <: FToken](implicit m: Manifest[T]): Parser[T] =
     elem(m.toString(), t => m.erasure == t.getClass()) ^^ (t => t.asInstanceOf[T]);
   
-  def genModuleHeader(word: String, ty: Type): Parser[(IdDecl, Type)] =
-    kw(word) ~> tok[TId] ~ opt(hasType) ^^
-    (x => (IdDecl(x._1.xs), x._2.getOrElse(ty)));
+  def genModuleHeader(word: String, ty: Type): Parser[Binder] = kw(word) ~> bindName ~ opt(hasType) ^^ Binder;
     
   def moduleHeader = genModuleHeader("module", Type.defaultModuleType);
   
@@ -40,11 +52,11 @@ object Syntax extends Parsers with ImplicitConversions {
   
   def decl: Parser[Decl] =
     kw("open") ~> moduleApp ~ opt(openQual) ^^ Open |
-    (kw("val") ~> bindName ~ hasType <~ kw("is")) ~ expr(exprPrim) ^^ BindVal |
+    (kw("val") ~> (bindName ~ opt(hasType) ^^ Binder) <~ kw("is")) ~ expr(exprPrim) ^^ BindVal |
     kw("data") ~> (dataOpen ~ bindName ~ opt(parentType) <~ kw("is")) ~ ty ^^ Data |
     kw("type") ~> (bindName <~ kw("is")) ~ ty ^^ TypeAlias |
-    (moduleHeader <~ kw("is")) ~ (moduleApp | decls <~ kw("end")) ^^ (x => BindModule(x._1._1, x._1._2, x._2)) |
-    (sigHeader <~ kw("is")) ~ sigDecls <~ kw("end") ^^ (x => BindSig(x._1._1, x._1._2, x._2)) |
+    (moduleHeader <~ kw("is")) ~ (moduleApp | decls <~ kw("end")) ^^ BindModule |
+    (sigHeader <~ kw("is")) ~ sigDecls <~ kw("end") ^^ BindSig |
     kw("infix") ~> infixAssoc ~ (tok[TInt] ^^ (x => x.n)) ~ rep1(bindName) ^^ Infix;
   
   def bindName: Parser[IdDecl] = (tok[TId] ^^ (x => x.xs) | tok[TExprOp] ^^ (x => x.xs)) ^^ IdDecl;
@@ -143,7 +155,8 @@ object Syntax extends Parsers with ImplicitConversions {
   
   def ty: Parser[Type] = tyQuants ~ tyCore ~ rep(tyConstr) ^^ Type.apply;
   
-  def tyQuants: Parser[List[IdDecl]] = kw("forall") ~> rep1(bindName) <~ kw(".");
+  def tyQuants: Parser[List[IdDecl]] =
+    opt(kw("forall") ~> rep1(bindName) <~ kw(".")) ^^ (m => m.getOrElse(Nil));
   
   def tyCore: Parser[Expr[TyPrim]] =
     (tyApp ^^ Some.apply) ~ rep(kw("->") ~> tyApp ^^ (x => (IdDecl("->"), x))) ^^ OpChain[TyPrim];

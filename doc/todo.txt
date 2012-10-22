@@ -2,15 +2,17 @@
 TO-DO
 =====
 
+Improve the tree printer
+
+Convert escape characters into the real thing in the lexer
+
+  Change the payload type of TChar to Char
+
 Rationalize types as we did for modules and sigs
 
   Get rid of the quantifier list and just use Fn to abstract over types
 
 Enable other declaration forms to appear inside local bindings when it makes sense
-
-Convert escape characters into the real thing in the lexer
-
-  Change the payload type of TChar to Char
 
 Pattern problem: there's no syntactic distinction between a nullary constructor pattern
   and a variable-binding pattern
@@ -18,3 +20,5 @@ Pattern problem: there's no syntactic distinction between a nullary constructor 
 Change OpChain to use an Expr[P] for each operator
 
   That way, special operators like TyFn can be represented more precisely
+
+Use packrat parsers to improve performance
