@@ -2,8 +2,6 @@
 TO-DO
 =====
 
-Improve the tree printer
-
 Convert escape characters into the real thing in the lexer
 
   Change the payload type of TChar to Char
