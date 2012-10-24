@@ -41,14 +41,14 @@ object Syntax extends TokenParsers with ImplicitConversions {
   
   def moduleApp: Parser[Expr[ModPrim]] = modulePrim ~ rep(modulePrim) ^^ App[ModPrim];  
     
-  def modulePrim: Parser[Expr[ModPrim]] = name ^^ ModRef ^^ Prim[ModPrim] | kw("(") ~> moduleApp <~ kw(")");
+  def modulePrim: Parser[Expr[ModPrim]] = name ^^ ModRef ^^ Lift[ModPrim] | kw("(") ~> moduleApp <~ kw(")");
   
   def openQual: Parser[OpenQual] =
     ((kw("except") | kw("only")) ^^ (_ == "only")) ~ rep1(bindName) ^^ OpenQual;
   
-  def decls: Parser[Expr[ModPrim]] = rep(decl) ^^ Module ^^ Prim[ModPrim];
+  def decls: Parser[Expr[ModPrim]] = rep(decl) ^^ Module ^^ Lift[ModPrim];
   
-  def sigDecls: Parser[Expr[SigPrim]] = rep(sigDecl) ^^ Sig ^^ Prim[SigPrim];
+  def sigDecls: Parser[Expr[SigPrim]] = rep(sigDecl) ^^ Sig ^^ Lift[SigPrim];
   
   def decl: Parser[Decl] =
     kw("open") ~> moduleApp ~ opt(openQual) ^^ Open |
@@ -83,48 +83,48 @@ object Syntax extends TokenParsers with ImplicitConversions {
     kw("<:") ~> success(OpSuperType) |
     kw(":") ~> success(OpEqualType);
     
-  def typeRel: Parser[TypeRel] = tyCompOp ~ ty ^^ TypeRel;
+  def typeRel: Parser[TyConstraint] = tyCompOp ~ ty ^^ TyConstraint;
   
-  def expr(prim: Parser[Expr[ValPrim]]): Parser[Expr[ValPrim]] =
-    (exprApp(prim) ^^ Some.apply) ~ rep(exprOp(prim)) ^^ OpChain[ValPrim] |
-    rep1(exprOp(prim)) ^^ (xs => OpChain[ValPrim](None, xs));
+  def expr(prim: Parser[Expr[ValExpr]]): Parser[Expr[ValExpr]] =
+    (exprApp(prim) ^^ Some.apply) ~ rep(exprOp(prim)) ^^ OpChain[ValExpr] |
+    rep1(exprOp(prim)) ^^ (xs => OpChain[ValExpr](None, xs));
   
-  def exprApp(prim: Parser[Expr[ValPrim]]): Parser[Expr[ValPrim]] = prim ~ rep(prim) ^^ App[ValPrim];
+  def exprApp(prim: Parser[Expr[ValExpr]]): Parser[Expr[ValExpr]] = prim ~ rep(prim) ^^ App[ValExpr];
   
-  def exprOp(prim: Parser[Expr[ValPrim]]): Parser[(IdDecl, Expr[ValPrim])] =
+  def exprOp(prim: Parser[Expr[ValExpr]]): Parser[(IdDecl, Expr[ValExpr])] =
     (tok[TExprOp] ^^ (x => IdDecl(x.xs))) ~ exprApp(prim) ^^ (x => (x._1, x._2));
   
-  def localBind: Parser[LocalBind[ValPrim]] =
-      (bindName ~ opt(hasType) <~ kw("is") ^^ Binder) ~ expr(exprPrim) ^^ LocalBind[ValPrim];
+  def localBind: Parser[LocalBind[ValExpr]] =
+      (bindName ~ opt(hasType) <~ kw("is") ^^ Binder) ~ expr(exprPrim) ^^ LocalBind[ValExpr];
   
   def semi[T](p: Parser[T]): Parser[List[T]] = rep1sep(p, kw(";")) <~ opt(kw(";"));
   
-  def localBinds: Parser[List[LocalBind[ValPrim]]] = semi(localBind);
+  def localBinds: Parser[List[LocalBind[ValExpr]]] = semi(localBind);
   
-  def exprEnd: Parser[List[LocalBind[ValPrim]]] =
+  def exprEnd: Parser[List[LocalBind[ValExpr]]] =
     (opt(kw("where") ~> localBinds) ^^ (x => x.getOrElse(Nil))) <~ kw("end");
   
-  def withLocalBinds(e: Expr[ValPrim], bs: List[LocalBind[ValPrim]]) = e.withLocalBinds(bs);
+  def withLocalBinds(e: Expr[ValExpr], bs: List[LocalBind[ValExpr]]) = e.withLocalBinds(bs);
   
-  def exprPrimDo: Parser[Expr[ValPrim]] =
-    kw("fn") ~> ((rep(valParam) <~ kw("->")) ~ expr(exprPrim) ^^ Lam[ValPrim]) ~
+  def exprPrimDo: Parser[Expr[ValExpr]] =
+    kw("fn") ~> ((rep(valParam) <~ kw("->")) ~ expr(exprPrim) ^^ Lam[ValExpr]) ~
       exprEnd ^^ withLocalBinds |
-    kw("fn") ~> kw("of") ~> (semi(fnClause) ^^ LamCase ^^ Prim[ValPrim]) ~ exprEnd ^^ withLocalBinds |
-    kw("case") ~> ((expr(exprPrim) <~ kw("of")) ~ semi(caseClause) ^^ Case ^^ Prim[ValPrim]) ~
+    kw("fn") ~> kw("of") ~> (semi(fnClause) ^^ LamCase ^^ Lift[ValExpr]) ~ exprEnd ^^ withLocalBinds |
+    kw("case") ~> ((expr(exprPrim) <~ kw("of")) ~ semi(caseClause) ^^ Case ^^ Lift[ValExpr]) ~
       exprEnd ^^ withLocalBinds |
-    kw("rec") ~> (localBinds ^^ Record ^^ Prim[ValPrim]) ~ exprEnd ^^ withLocalBinds |
+    kw("rec") ~> (localBinds ^^ Record ^^ Lift[ValExpr]) ~ exprEnd ^^ withLocalBinds |
     kw("begin") ~> expr(exprPrim) ~ exprEnd ^^ withLocalBinds |
-    name ^^ ERef[ValPrim] |
-    tok[TInt] ^^ (t => Prim[ValPrim](EInt(t.n))) |
-    tok[TFloat] ^^ (t => Prim[ValPrim](EFloat(t.n))) |
-    tok[TString] ^^ (t => Prim[ValPrim](EString(t.xs))) |
-    tok[TChar] ^^ (t => Prim[ValPrim](EChar(t.char))) |
-    kw("?") ~> success(ToDo[ValPrim]());
+    name ^^ ERef[ValExpr] |
+    tok[TInt] ^^ (t => Lift[ValExpr](EInt(t.n))) |
+    tok[TFloat] ^^ (t => Lift[ValExpr](EFloat(t.n))) |
+    tok[TString] ^^ (t => Lift[ValExpr](EString(t.xs))) |
+    tok[TChar] ^^ (t => Lift[ValExpr](EChar(t.char))) |
+    kw("?") ~> success(ToDo[ValExpr]());
   
-  def exprPrim: Parser[Expr[ValPrim]] =
+  def exprPrim: Parser[Expr[ValExpr]] =
     exprPrimDo |
-    kw("do") ~> (semi(doElem) ^^ Do ^^ Prim[ValPrim]) ~ exprEnd ^^ withLocalBinds |
-    kw("let") ~> ((localBinds <~ kw("in")) ~ expr(exprPrim) ^^ Let[ValPrim]) ~ exprEnd ^^ withLocalBinds |
+    kw("do") ~> (semi(doElem) ^^ Do ^^ Lift[ValExpr]) ~ exprEnd ^^ withLocalBinds |
+    kw("let") ~> ((localBinds <~ kw("in")) ~ expr(exprPrim) ^^ Let[ValExpr]) ~ exprEnd ^^ withLocalBinds |
     kw("(") ~> expr(exprPrim) <~ kw(")");
   
   def name: Parser[IdRef] = tok[TName] ^^ (t => IdRef(t.xs)) | tok[TId] ^^ (t => IdRef(List(t.xs)));
@@ -158,17 +158,17 @@ object Syntax extends TokenParsers with ImplicitConversions {
   def tyQuants: Parser[List[IdDecl]] =
     opt(kw("forall") ~> rep1(bindName) <~ kw(".")) ^^ (m => m.getOrElse(Nil));
   
-  def tyCore: Parser[Expr[TyPrim]] =
-    (tyApp ^^ Some.apply) ~ rep(kw("->") ~> tyApp ^^ (x => (IdDecl("->"), x))) ^^ OpChain[TyPrim];
+  def tyCore: Parser[Expr[TyExpr]] =
+    (tyApp ^^ Some.apply) ~ rep(kw("->") ~> tyApp ^^ (x => (IdDecl("->"), x))) ^^ OpChain[TyExpr];
   
-  def tyApp: Parser[Expr[TyPrim]] = tyPrim ~ rep(tyPrim) ^^ App[TyPrim];
+  def tyApp: Parser[Expr[TyExpr]] = tyPrim ~ rep(tyPrim) ^^ App[TyExpr];
   
-  def tyPrim: Parser[Expr[TyPrim]] =
+  def tyPrim: Parser[Expr[TyExpr]] =
     kw("(") ~> tyCore <~ kw(")") |
-    kw("*") ~> success(Prim[TyPrim](TyAuto)) |
-    kw("rec") ~> semi(bindName ~ (hasType ^^ Some.apply) ^^ Binder) <~ kw("end") ^^ TyRecord ^^ Prim[TyPrim] |
-    name ^^ ERef[TyPrim];
+    kw("*") ~> success(Lift[TyExpr](TyAuto)) |
+    kw("rec") ~> semi(bindName ~ (hasType ^^ Some.apply) ^^ Binder) <~ kw("end") ^^ TyRecord ^^ Lift[TyExpr] |
+    name ^^ ERef[TyExpr];
   
-  def tyConstr: Parser[TyConstr] = kw("with") ~> tyCore ~ tyCompOp ~ tyCore ^^ TyConstr;
+  def tyConstr: Parser[TyRel] = kw("with") ~> tyCore ~ tyCompOp ~ tyCore ^^ TyRel;
 
 }

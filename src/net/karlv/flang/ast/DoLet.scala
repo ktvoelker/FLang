@@ -1,5 +1,5 @@
 package net.karlv.flang.ast
 
-case class DoLet(binds: List[LocalBind[ValPrim]]) extends DoElem {
+case class DoLet(binds: List[LocalBind[ValExpr]]) extends DoElem {
   
 }

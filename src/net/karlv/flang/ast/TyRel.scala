@@ -1,6 +1,10 @@
 package net.karlv.flang.ast
 
-case class TyConstr(left: Expr[TyPrim], op: TypeCompOp, right: Expr[TyPrim]) {
+case class TyRel(left: Expr[TyExpr], op: TypeCompOp, right: Expr[TyExpr]) {
+  
+}
+
+case class TyConstraint(compOp: TypeCompOp, right: Type) {
   
 }
 
