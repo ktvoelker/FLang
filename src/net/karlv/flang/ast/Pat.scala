@@ -4,14 +4,6 @@ abstract class Pat {
 
 }
 
-case class PatApp(con: IdRef, args: List[Pat]) extends Pat {
-  
-}
-
-case class PatBind(id: IdDecl) extends Pat {
-  
-}
-
 case object PatAny extends Pat {
   
 }
