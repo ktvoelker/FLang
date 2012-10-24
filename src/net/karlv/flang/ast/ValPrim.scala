@@ -38,6 +38,6 @@ case class EString(xs: String) extends ValPrim {
   
 }
 
-case class EChar(xs: String) extends ValPrim {
+case class EChar(char: Char) extends ValPrim {
   
 }

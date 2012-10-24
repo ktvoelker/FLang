@@ -19,7 +19,7 @@ object Lexicon extends Lexical with RegexParsers {
   override def whitespace: Parser[Unit] = comment | ws;
   
   override def token: Parser[Token] =
-    foldLeft1[Parser[Token]](_ | _)(keywords ++ List(id, name, exprOp, int, float));
+    foldLeft1[Parser[Token]](_ | _)(keywords ++ List(id, name, exprOp, int, float, string, char));
   
   def foldLeft1[A](op: (A, A) => A)(xs: Iterable[A]) = xs.tail.foldLeft(xs.head)(op);
 

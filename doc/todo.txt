@@ -2,10 +2,6 @@
 TO-DO
 =====
 
-Convert escape characters into the real thing in the lexer
-
-  Change the payload type of TChar to Char
-
 Rationalize types as we did for modules and sigs
 
   Get rid of the quantifier list and just use Fn to abstract over types
@@ -20,3 +16,5 @@ Change OpChain to use an Expr[P] for each operator
   That way, special operators like TyFn can be represented more precisely
 
 Use packrat parsers to improve performance
+
+Improve error messages in the parser

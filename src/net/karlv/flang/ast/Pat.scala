@@ -24,6 +24,6 @@ case class PatString(xs: String) extends Pat {
   
 }
 
-case class PatChar(xs: String) extends Pat {
+case class PatChar(char: Char) extends Pat {
   
 }

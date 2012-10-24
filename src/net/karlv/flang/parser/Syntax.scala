@@ -118,7 +118,7 @@ object Syntax extends TokenParsers with ImplicitConversions {
     tok[TInt] ^^ (t => Prim[ValPrim](EInt(t.n))) |
     tok[TFloat] ^^ (t => Prim[ValPrim](EFloat(t.n))) |
     tok[TString] ^^ (t => Prim[ValPrim](EString(t.xs))) |
-    tok[TChar] ^^ (t => Prim[ValPrim](EChar(t.xs))) |
+    tok[TChar] ^^ (t => Prim[ValPrim](EChar(t.char))) |
     kw("?") ~> success(ToDo[ValPrim]());
   
   def exprPrim: Parser[Expr[ValPrim]] =
@@ -147,7 +147,7 @@ object Syntax extends TokenParsers with ImplicitConversions {
     kw("(") ~> patApp <~ kw(")") |
     tok[TInt] ^^ (t => PatInt(t.n)) |
     tok[TString] ^^ (t => PatString(t.xs)) |
-    tok[TChar] ^^ (t => PatChar(t.xs));
+    tok[TChar] ^^ (t => PatChar(t.char));
   
   def patApp: Parser[Pat] = name ~ rep(pat) ^^ PatApp;
   
