@@ -1,5 +1,5 @@
 package net.karlv.flang.ast
 
-case class ToDo[P]() extends Expr[P] {
+case class ToDo[P, D]() extends Expr[P, D] {
   
 }

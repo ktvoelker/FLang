@@ -1,5 +1,5 @@
 package net.karlv.flang.ast
 
-case class BindModule(binder: Binder, body: Expr[ModPrim]) extends Bind(binder, body) with FileBind {
+case class BindModule(binder: Binder, body: Expr[Nothing, ModDecl]) extends Bind(binder, body) with File {
   
 }

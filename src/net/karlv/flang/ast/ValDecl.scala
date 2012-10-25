@@ -1,5 +1,5 @@
 package net.karlv.flang.ast
 
-trait FileBind {
-  
+trait ValDecl {
+
 }

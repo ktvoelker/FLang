@@ -2,23 +2,13 @@
 TO-DO
 =====
 
-A possible generalization: everywhere that the type parameter Prim appears, add a second type parameter for the
-type of unlifted declarations. Then, in Let, you can either bind a name to an expression of the current modality,
-or you can lift an unlifted declaration of the current modality.
-
-Thus, a module body is just a Let expression in the module modality.
-
-  Actually, that's not quite right. A module body is more like a record, since the module body is the value, not
-  a set of declarations that creates a context in which to calculate a value. So, we don't necessarily need to
-  allow arbitrary declarations into Let, but we do need to allow them into Record.
-
-  This gets rid of the problem of what to call GenModule; we won't need it! The abstraction has been changed
-  from talking about "different modul-ish things" to a more meaningful distinction: things which can have groups
-  of declarations.
-
 Rationalize types as we did for modules and sigs
 
   Get rid of the quantifier list and just use Fn to abstract over types
+  
+  Get rid of TyRecord and just use Record
+  
+    This will require defining TyDecl
 
 Enable other declaration forms to appear inside local bindings when it makes sense
 

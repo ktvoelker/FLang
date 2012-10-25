@@ -1,8 +1,8 @@
 package net.karlv.flang.ast
 
-abstract class ValExpr {
+abstract class ValExpr extends Liftable[ValExpr, ValDecl] {
   
-  implicit def toExpr: Expr[ValExpr] = Lift(this);
+  override def lift = Lift(this);
 
 }
 

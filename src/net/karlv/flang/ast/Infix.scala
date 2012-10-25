@@ -1,6 +1,6 @@
 package net.karlv.flang.ast
 
-case class Infix(assoc: InfixAssoc, prec: BigInt, ids: List[IdDecl]) extends Decl {
+case class Infix(assoc: InfixAssoc, prec: BigInt, ids: List[IdDecl]) extends ModDecl {
   
 }
 

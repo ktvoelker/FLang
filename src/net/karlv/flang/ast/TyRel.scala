@@ -1,6 +1,6 @@
 package net.karlv.flang.ast
 
-case class TyRel(left: Expr[TyExpr], op: TypeCompOp, right: Expr[TyExpr]) {
+case class TyRel(left: Expr[TyExpr, ModDecl], op: TypeCompOp, right: Expr[TyExpr, ModDecl]) {
   
 }
 

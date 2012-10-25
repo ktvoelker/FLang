@@ -1,5 +1,5 @@
 package net.karlv.flang.ast
 
-case class OpChain[P](left: Option[Expr[P]], ops: List[(IdDecl, Expr[P])]) extends Expr[P] {
+case class OpChain[P, D](left: Option[Expr[P, D]], ops: List[(IdDecl, Expr[P, D])]) extends Expr[P, D] {
   
 }

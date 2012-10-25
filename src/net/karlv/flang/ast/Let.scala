@@ -1,5 +1,5 @@
 package net.karlv.flang.ast
 
-case class Let[P](binds: List[LocalBind[P]], body: Expr[P]) extends Expr[P] {
+case class Let[+P, D](binds: List[D], body: Expr[P, D]) extends Expr[P, D] {
   
 }

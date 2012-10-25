@@ -1,5 +1,5 @@
 package net.karlv.flang.ast
 
-abstract class Bind[P](binder: Binder, body: Expr[P]) extends Decl {
+abstract class Bind[P, D](binder: Binder, body: Expr[P, D]) extends ModDecl {
   
 }
