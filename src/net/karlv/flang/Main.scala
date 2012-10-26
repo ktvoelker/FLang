@@ -1,36 +1,24 @@
 package net.karlv.flang
 import java.io.FileInputStream
+import net.karlv.flang.compile.Resolver
+import net.karlv.flang.ast.File
 
 object Main {
   
-  def lex(is: FileInputStream): Unit = {
-    var r = parser.Lexicon(is);
-    while (!r.atEnd) {
-      println(r.first);
-      r = r.rest;
-    }
-  };
-  
-  def parse(is: FileInputStream): Unit = {
-    val ast = parser.Syntax(is);
-    print(new TreeFormatter(ast).str);
+  def help(_ignore: FileInputStream): Unit = {
+    println("Usage: java -jar FLang.jar FILE ...");
+    System.exit(1);
   };
 
   def main(args: Array[String]): Unit = {
-    if (args.length == 2) {
-      val is = new FileInputStream(args(1));
-      args(0) match {
-        case "lex" => {
-          lex(is);
-          return;
-        };
-        case "parse" => {
-          parse(is);
-          return;
-        };
-      };
-    }
-    println("Usage: java -jar FLang.jar (lex|parse) FILE");
-  }
+    val streams = args.toList.map(new FileInputStream(_));
+    compile(streams.map(parser.Syntax(_)));
+    streams.foreach(_.close);
+  };
+  
+  def compile(files: List[File]): Unit = {
+    files.foreach(file => print(new TreeFormatter(file).str));
+    Resolver.resolve(files);
+  };
 
 }
