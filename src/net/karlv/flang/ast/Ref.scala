@@ -1,5 +1,5 @@
 package net.karlv.flang.ast
 
-case class Ref(id: IdRef) extends Expr[Nothing, Nothing] {
+case class Ref(names: List[Name]) extends Expr[Nothing, Nothing] {
   
 }

@@ -1,5 +1,5 @@
 package net.karlv.flang.ast
 
-case class TypeAlias(id: IdDecl, ty: Type) extends ModDecl {
+case class TypeAlias(id: Name, ty: Type) extends ModDecl {
   
 }

@@ -1,5 +1,5 @@
 package net.karlv.flang.ast
 
-case class PatBind(id: IdDecl) extends Pat {
+case class PatBind(id: Name) extends Pat {
   
 }

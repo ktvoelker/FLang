@@ -1,5 +1,5 @@
 package net.karlv.flang.ast
 
-case class PatApp(con: IdRef, args: List[Pat]) extends Pat {
+case class PatApp(con: Ref, args: List[Pat]) extends Pat {
   
 }
