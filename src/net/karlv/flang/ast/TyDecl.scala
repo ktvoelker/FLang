@@ -4,6 +4,10 @@ trait TyDecl {
 
 }
 
-case class BindValTy(id: Name, ty: Type) extends TyDecl {
+case class FieldDecl(id: Name, ty: Type) extends TyDecl {
+  
+}
+
+case class Constraint(left: Expr[TyExpr, TyDecl], op: TyCompOp, right: Expr[TyExpr, TyDecl]) extends TyDecl {
   
 }

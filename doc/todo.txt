@@ -2,6 +2,8 @@
 TO-DO
 =====
 
+Resolve references (and check for duplicate-name errors)
+
 Write a type-checker
 
 Improve error messages in the parser

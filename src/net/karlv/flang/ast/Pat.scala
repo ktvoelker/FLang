@@ -4,6 +4,14 @@ abstract class Pat {
 
 }
 
+case class PatApp(con: Ref, args: List[Pat]) extends Pat {
+  
+}
+
+case class PatBind(id: Name) extends Pat {
+  
+}
+
 case object PatAny extends Pat {
   
 }

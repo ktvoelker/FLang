@@ -37,20 +37,20 @@ object Syntax extends TokenParsers with ImplicitConversions {
   
   def genModuleHeader(word: String, ty: Type): Parser[Binder] = kw(word) ~> bindName ~ opt(hasType) ^^ Binder;
     
-  def moduleHeader = genModuleHeader("module", Type.defaultModuleType);
+  def moduleHeader = genModuleHeader("module", Lift(TyAuto));
   
-  def sigHeader = genModuleHeader("sig", Type.defaultSigType);
+  def sigHeader = genModuleHeader("sig", Lift(TyAuto));
   
-  def moduleApp: Parser[Expr[Nothing, ModDecl]] = modulePrim ~ rep(modulePrim) ^^ App[Nothing, ModDecl];  
+  def moduleApp: Parser[Module] = modulePrim ~ rep(modulePrim) ^^ App[Nothing, ModDecl];  
 
-  def modulePrim: Parser[Expr[Nothing, ModDecl]] = ref | kw("(") ~> moduleApp <~ kw(")");
+  def modulePrim: Parser[Module] = ref | kw("(") ~> moduleApp <~ kw(")");
   
   def openQual: Parser[OpenQual] =
     ((kw("except") | kw("only")) ^^ (_ == "only")) ~ rep1(bindName) ^^ OpenQual;
   
-  def decls: Parser[Expr[Nothing, ModDecl]] = rep(decl) ^^ Record[ModDecl];
+  def decls: Parser[Module] = rep(decl) ^^ Record[ModDecl];
   
-  def sigDecls: Parser[Expr[Nothing, SigDecl]] = rep(sigDecl) ^^ Record[SigDecl];
+  def sigDecls: Parser[Sig] = rep(sigDecl) ^^ Record[SigDecl];
   
   def decl: Parser[ModDecl] =
     kw("open") ~> moduleApp ~ opt(openQual) ^^ Open |
@@ -80,21 +80,21 @@ object Syntax extends TokenParsers with ImplicitConversions {
     kw("type") ~> bindName ~ opt(typeRel) ^^ SigType |
     kw("module") ~> bindName ~ hasType ^^ SigModule;
     
-  def tyCompOp: Parser[TypeCompOp] =
-    kw("<:") ~> success(OpSubType) |
-    kw("<:") ~> success(OpSuperType) |
-    kw(":") ~> success(OpEqualType);
+  def tyCompOp: Parser[TyCompOp] =
+    kw("<:") ~> success(OpSubTy) |
+    kw("<:") ~> success(OpSuperTy) |
+    kw(":") ~> success(OpEqualTy);
     
-  def typeRel: Parser[TyConstraint] = tyCompOp ~ ty ^^ TyConstraint;
+  def typeRel: Parser[TyBound] = tyCompOp ~ ty ^^ TyBound;
   
-  def expr(prim: Parser[Expr[ValExpr, ValDecl]]): Parser[Expr[ValExpr, ValDecl]] =
+  def expr(prim: Parser[Value]): Parser[Value] =
     (exprApp(prim) ^^ Some.apply) ~ rep(exprOp(prim)) ^^ OpChain[ValExpr, ValDecl] |
     rep1(exprOp(prim)) ^^ (xs => OpChain[ValExpr, ValDecl](None, xs));
   
-  def exprApp(prim: Parser[Expr[ValExpr, ValDecl]]): Parser[Expr[ValExpr, ValDecl]] =
+  def exprApp(prim: Parser[Value]): Parser[Value] =
     prim ~ rep(prim) ^^ App[ValExpr, ValDecl];
   
-  def exprOp(prim: Parser[Expr[ValExpr, ValDecl]]): Parser[(Expr[ValExpr, ValDecl], Expr[ValExpr, ValDecl])] =
+  def exprOp(prim: Parser[Value]): Parser[(Value, Value)] =
     (tok[TExprOp] ^^ (x => Ref(List(Name(x.xs))))) ~ exprApp(prim) ^^ (x => (x._1, x._2));
   
   def localBind: Parser[ValDecl] =
@@ -107,26 +107,26 @@ object Syntax extends TokenParsers with ImplicitConversions {
   def exprEnd: Parser[List[ValDecl]] =
     (opt(kw("where") ~> localBinds) ^^ (x => x.getOrElse(Nil))) <~ kw("end");
   
-  def withLocalBinds(e: Expr[ValExpr, ValDecl], bs: List[ValDecl]) = e.withLocalBinds(bs);
+  def withLocalBinds(e: Value, bs: List[ValDecl]) = e.withLocalBinds(bs);
   
-  def exprPrimDo: Parser[Expr[ValExpr, ValDecl]] =
+  def exprPrimDo: Parser[Value] =
     kw("fn") ~> ((rep(valParam) <~ kw("->")) ~ expr(exprPrim) ^^ Lam[ValExpr, ValDecl]) ~
       exprEnd ^^ withLocalBinds |
-    kw("fn") ~> kw("of") ~> (semi(fnClause) ^^ LamCase ^^ Lift[ValExpr, ValDecl]) ~ exprEnd ^^ withLocalBinds |
-    kw("case") ~> ((expr(exprPrim) <~ kw("of")) ~ semi(caseClause) ^^ Case ^^ Lift[ValExpr, ValDecl]) ~
+    kw("fn") ~> kw("of") ~> (semi(fnClause) ^^ LamCase ^^ Lift[ValExpr]) ~ exprEnd ^^ withLocalBinds |
+    kw("case") ~> ((expr(exprPrim) <~ kw("of")) ~ semi(caseClause) ^^ Case ^^ Lift[ValExpr]) ~
       exprEnd ^^ withLocalBinds |
     kw("rec") ~> (localBinds ^^ Record[ValDecl]) ~ exprEnd ^^ withLocalBinds |
     kw("begin") ~> expr(exprPrim) ~ exprEnd ^^ withLocalBinds |
     ref |
-    tok[TInt] ^^ (t => Lift[ValExpr, ValDecl](EInt(t.n))) |
-    tok[TFloat] ^^ (t => Lift[ValExpr, ValDecl](EFloat(t.n))) |
-    tok[TString] ^^ (t => Lift[ValExpr, ValDecl](EString(t.xs))) |
-    tok[TChar] ^^ (t => Lift[ValExpr, ValDecl](EChar(t.char))) |
-    kw("?") ~> success(ToDo[ValExpr, ValDecl]());
+    tok[TInt] ^^ (t => Lift[ValExpr](EInt(t.n))) |
+    tok[TFloat] ^^ (t => Lift[ValExpr](EFloat(t.n))) |
+    tok[TString] ^^ (t => Lift[ValExpr](EString(t.xs))) |
+    tok[TChar] ^^ (t => Lift[ValExpr](EChar(t.char))) |
+    kw("?") ~> success(ToDo);
   
-  def exprPrim: Parser[Expr[ValExpr, ValDecl]] =
+  def exprPrim: Parser[Value] =
     exprPrimDo |
-    kw("do") ~> (semi(doElem) ^^ Do ^^ Lift[ValExpr, ValDecl]) ~ exprEnd ^^ withLocalBinds |
+    kw("do") ~> (semi(doElem) ^^ Do ^^ Lift[ValExpr]) ~ exprEnd ^^ withLocalBinds |
     kw("let") ~> ((localBinds <~ kw("in")) ~ expr(exprPrim) ^^ Let[ValExpr, ValDecl]) ~
       exprEnd ^^ withLocalBinds |
     kw("(") ~> expr(exprPrim) <~ kw(")");
@@ -167,17 +167,17 @@ object Syntax extends TokenParsers with ImplicitConversions {
   def tyQuants: Parser[List[Binder]] =
     opt(kw("forall") ~> rep1(bindName ^^ {Binder(_, None)}) <~ kw(".")) ^^ (m => m.getOrElse(Nil));
   
-  def tyCore: Parser[Expr[TyExpr, TyDecl]] =
+  def tyCore: Parser[Type] =
     (tyApp ^^ Some.apply) ~ rep(kw("->") ~> tyApp ^^ (x => (Lift(TyFn), x))) ^^ OpChain[TyExpr, TyDecl];
   
-  def tyApp: Parser[Expr[TyExpr, TyDecl]] = tyPrim ~ rep(tyPrim) ^^ App[TyExpr, TyDecl];
+  def tyApp: Parser[Type] = tyPrim ~ rep(tyPrim) ^^ App[TyExpr, TyDecl];
   
-  def tyPrim: Parser[Expr[TyExpr, TyDecl]] =
+  def tyPrim: Parser[Type] =
     kw("(") ~> tyCore <~ kw(")") |
-    kw("*") ~> success(Lift[TyExpr, TyDecl](TyAuto)) |
-    kw("rec") ~> semi(bindName ~ hasType ^^ BindValTy) <~ kw("end") ^^ Record[TyDecl] |
+    kw("*") ~> success(Lift[TyExpr](TyAuto)) |
+    kw("rec") ~> semi(bindName ~ hasType ^^ FieldDecl) <~ kw("end") ^^ Record[TyDecl] |
     ref;
   
-  def tyConstr: Parser[TyRel] = kw("with") ~> tyCore ~ tyCompOp ~ tyCore ^^ TyRel;
+  def tyConstr: Parser[Constraint] = kw("with") ~> tyCore ~ tyCompOp ~ tyCore ^^ Constraint;
 
 }
