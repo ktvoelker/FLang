@@ -1,9 +1,9 @@
 package net.karlv.flang.ast
 
-case class Case(head: Expr[ValExpr, ValDecl], clauses: List[CaseClause]) extends ValExpr {
+case class Case(head: UVal.Expr, clauses: List[CaseClause]) extends ValExpr {
   
 }
 
-case class CaseClause(pat: Pat, body: Expr[ValExpr, ValDecl]) {
+case class CaseClause(pat: Pat, body: UVal.Expr) {
   
 }

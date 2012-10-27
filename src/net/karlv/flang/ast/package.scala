@@ -4,20 +4,14 @@ import Scalaz._
 
 package object ast extends EqualLow {
   
-  type Root = Record[ModDecl];
-
-  type ModExpr = Nothing;
+  type Root = UMod.Record;
   
-  type SigExpr = Nothing;
-  
-  type Module = Expr[ModExpr, ModDecl];
-  
-  type Sig = Expr[SigExpr, SigDecl];
-  
-  type Type = Expr[TyExpr, TyDecl];
-  
-  type Value = Expr[ValExpr, ValDecl];
+  implicit object UVal extends Universe { }
+  implicit object UTy extends Universe { }
+  implicit object UMod extends Universe { }
+  implicit object USig extends Universe { }
   
   implicit def BindNameEqual: Equal[BindName] = equalA;
+  implicit def NamespaceEqual: Equal[Namespace] = equalA;
 
 }

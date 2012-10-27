@@ -1,5 +1,8 @@
 package net.karlv.flang.parser
 
+import scalaz._
+import Scalaz._
+
 abstract class FToken(override val chars: String) extends Lexicon.Token {}
 
 case class TKeyword(word: String) extends FToken(word) {}
@@ -36,7 +39,7 @@ abstract class TChars(raw: String) extends FToken(raw) {
         case '\\' =>
           {
             val ch = raw(pos + 1);
-            if (ch == 'U' || ch == 'u') {
+            if (ch === 'U' || ch === 'u') {
               b.append(Integer.getInteger(raw.substring(pos + 2, pos + 6), 16).toChar);
               pos += 6;
             } else if (ch >= '0' && ch <= '9') {

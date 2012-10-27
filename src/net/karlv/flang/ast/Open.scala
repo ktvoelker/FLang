@@ -1,6 +1,6 @@
 package net.karlv.flang.ast
 
-case class Open(module: Expr[Nothing, ModDecl], qual: Option[OpenQual]) extends ModDecl {
+case class Open(module: UMod.Expr, qual: Option[OpenQual]) extends ModDecl {
   
 }
 

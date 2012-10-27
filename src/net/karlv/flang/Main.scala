@@ -1,7 +1,7 @@
 package net.karlv.flang
 import java.io.FileInputStream
 import net.karlv.flang.compile.TypeChecker
-import net.karlv.flang.ast.Record
+import net.karlv.flang.ast.UMod
 import net.karlv.flang.ast.ModDecl
 
 object Main {
@@ -18,7 +18,7 @@ object Main {
   };
   
   def compile(files: List[ModDecl]): Unit = {
-    new TypeChecker(Record(files)).run();
+    new TypeChecker(UMod.Record(files)).run();
     files.foreach(file => print(new TreeFormatter(file).str));
   };
 

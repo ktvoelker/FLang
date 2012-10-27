@@ -1,6 +1,6 @@
 package net.karlv.flang.ast
 
-case class Data(isOpen: Boolean, id: BindName, parent: Option[Type], ty: Type) extends ModDecl {
+case class Data(isOpen: Boolean, id: BindName, parent: Option[UTy.Expr], ty: UTy.Expr) extends ModDecl {
   
   def isClosed = !isOpen;
   

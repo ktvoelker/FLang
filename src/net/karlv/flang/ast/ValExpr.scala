@@ -1,8 +1,6 @@
 package net.karlv.flang.ast
 
-abstract class ValExpr extends Liftable[ValExpr] {
-  
-  override def lift = Lift(this);
+abstract class ValExpr extends UVal.Expr {
 
 }
 
@@ -10,7 +8,7 @@ case class LamCase(clauses: List[LamCaseClause]) extends ValExpr {
   
 }
 
-case class LamCaseClause(pats: List[Pat], body: Expr[ValExpr, ValDecl]) {
+case class LamCaseClause(pats: List[Pat], body: UVal.Expr) {
   
 }
 

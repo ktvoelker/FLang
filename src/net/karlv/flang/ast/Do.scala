@@ -8,11 +8,11 @@ abstract class DoElem {
   
 }
 
-case class DoBind(pat: Pat, body: Expr[ValExpr, ValDecl]) extends DoElem {
+case class DoBind(pat: Pat, body: UVal.Expr) extends DoElem {
   
 }
 
-case class DoExpr(expr: Expr[ValExpr, ValDecl]) extends DoElem {
+case class DoExpr(expr: UVal.Expr) extends DoElem {
   
 }
 

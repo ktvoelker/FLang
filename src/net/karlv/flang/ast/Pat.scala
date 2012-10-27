@@ -4,7 +4,7 @@ abstract class Pat {
 
 }
 
-case class PatApp(con: Ref, args: List[Pat]) extends Pat {
+case class PatApp(con: UVal.Ref, args: List[Pat]) extends Pat {
   
 }
 

@@ -1,8 +1,6 @@
 package net.karlv.flang.ast
 
-abstract class TyExpr extends Liftable[TyExpr] {
-  
-  override def lift = Lift(this);
+abstract class TyExpr extends UTy.Expr {
   
 }
 
