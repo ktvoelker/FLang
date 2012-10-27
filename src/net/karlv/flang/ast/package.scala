@@ -1,6 +1,10 @@
 package net.karlv.flang
+import scalaz._
+import Scalaz._
 
-package object ast {
+package object ast extends EqualLow {
+  
+  type Root = Record[ModDecl];
 
   type ModExpr = Nothing;
   
@@ -13,5 +17,7 @@ package object ast {
   type Type = Expr[TyExpr, TyDecl];
   
   type Value = Expr[ValExpr, ValDecl];
+  
+  implicit def BindNameEqual: Equal[BindName] = equalA;
 
 }

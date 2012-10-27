@@ -4,7 +4,7 @@ trait TyDecl {
 
 }
 
-case class FieldDecl(id: Name, ty: Type) extends TyDecl {
+case class FieldDecl(id: BindName, ty: Type) extends TyDecl {
   
 }
 

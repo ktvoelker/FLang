@@ -8,7 +8,7 @@ case class PatApp(con: Ref, args: List[Pat]) extends Pat {
   
 }
 
-case class PatBind(id: Name) extends Pat {
+case class PatBind(id: BindName) extends Pat {
   
 }
 

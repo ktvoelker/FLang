@@ -4,10 +4,6 @@ trait ModDecl {
 
 }
 
-trait File {
-  
-}
-
 trait ValDecl {
 
 }
@@ -16,11 +12,11 @@ abstract class Bind[P, D](binder: Binder, body: Expr[P, D]) extends ModDecl {
   
 }
 
-case class BindModule(binder: Binder, body: Expr[Nothing, ModDecl]) extends Bind(binder, body) with File {
+case class BindModule(binder: Binder, body: Expr[Nothing, ModDecl]) extends Bind(binder, body) {
   
 }
 
-case class BindSig(binder: Binder, body: Expr[Nothing, SigDecl]) extends Bind(binder, body) with File {
+case class BindSig(binder: Binder, body: Expr[Nothing, SigDecl]) extends Bind(binder, body) {
   
 }
 
@@ -28,6 +24,6 @@ case class BindVal(binder: Binder, body: Expr[ValExpr, ValDecl]) extends Bind(bi
   
 }
 
-case class TypeAlias(id: Name, ty: Type) extends ModDecl {
+case class TypeAlias(id: BindName, ty: Type) extends ModDecl {
   
 }

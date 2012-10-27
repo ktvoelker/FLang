@@ -2,7 +2,11 @@
 TO-DO
 =====
 
-Resolve references (and check for duplicate-name errors)
+Write a name resolver
+
+  Think about what exactly this will do. Things we might want:
+  1. Links from child nodes to their parents. (What would the types be?)
+  2. Refs can then point directly to their nodes. (You can get the context by going up.)
 
 Write a type-checker
 

@@ -4,7 +4,7 @@ case class Open(module: Expr[Nothing, ModDecl], qual: Option[OpenQual]) extends 
   
 }
 
-case class OpenQual(isOnly: Boolean, names: List[Name]) {
+case class OpenQual(isOnly: Boolean, names: List[BindName]) {
   
   def isExcept = !isOnly;
 

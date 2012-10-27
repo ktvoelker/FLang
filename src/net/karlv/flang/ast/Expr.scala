@@ -41,7 +41,7 @@ case class Record[D](elems: List[D]) extends Expr[Nothing, D] {
   
 }
 
-case class Ref(names: List[Name]) extends Expr[Nothing, Nothing] {
+case class Ref(names: List[BindName]) extends Expr[Nothing, Nothing] {
   
 }
 

@@ -1,6 +1,6 @@
 package net.karlv.flang.ast
 
-case class Name(val name: String) {
+case class BindName(val name: String) {
   
   val namespace: Namespace = if (name.charAt(0).isUpper) NsTypes else NsValues;
 

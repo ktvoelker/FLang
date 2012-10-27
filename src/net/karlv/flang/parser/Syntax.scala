@@ -17,18 +17,18 @@ object Syntax extends TokenParsers with ImplicitConversions {
   
   override val lexical = Lexicon;
   
-  def apply(is: InputStream): File = this(Lexicon(is));
+  def apply(is: InputStream): ModDecl = this(Lexicon(is));
 
-  def apply(ts: Reader[Lexicon.Token]): File = start(ts) match {
+  def apply(ts: Reader[Lexicon.Token]): ModDecl = start(ts) match {
     case Success(tree, _) => tree;
     case failure: NoSuccess => sys.error(failure.toString());
   };
   
   def flip[A, B](pair: ~[A, B]): ~[B, A] = new ~(pair._2, pair._1);
   
-  def start: Parser[File] = phrase(file);
+  def start: Parser[ModDecl] = phrase(file);
   
-  def file: Parser[File] = moduleHeader ~ decls ^^ BindModule | sigHeader ~ sigDecls ^^ BindSig;
+  def file: Parser[ModDecl] = moduleHeader ~ decls ^^ BindModule | sigHeader ~ sigDecls ^^ BindSig;
   
   def kw(word: String): Parser[String] = elem(TKeyword(word)) ^^ (_.asInstanceOf[TKeyword].word);
   
@@ -61,7 +61,7 @@ object Syntax extends TokenParsers with ImplicitConversions {
     (sigHeader <~ kw("is")) ~ sigDecls <~ kw("end") ^^ BindSig |
     kw("infix") ~> infixAssoc ~ (tok[TInt] ^^ (x => x.n)) ~ rep1(bindName) ^^ Infix;
   
-  def bindName: Parser[Name] = (tok[TId] ^^ (x => x.xs) | tok[TExprOp] ^^ (x => x.xs)) ^^ Name;
+  def bindName: Parser[BindName] = (tok[TId] ^^ (x => x.xs) | tok[TExprOp] ^^ (x => x.xs)) ^^ BindName;
   
   def dataOpen: Parser[Boolean] =
     kw("open") ~> success(true) |
@@ -95,7 +95,7 @@ object Syntax extends TokenParsers with ImplicitConversions {
     prim ~ rep(prim) ^^ App[ValExpr, ValDecl];
   
   def exprOp(prim: Parser[Value]): Parser[(Value, Value)] =
-    (tok[TExprOp] ^^ (x => Ref(List(Name(x.xs))))) ~ exprApp(prim) ^^ (x => (x._1, x._2));
+    (tok[TExprOp] ^^ (x => Ref(List(BindName(x.xs))))) ~ exprApp(prim) ^^ (x => (x._1, x._2));
   
   def localBind: Parser[ValDecl] =
       (bindName ~ opt(hasType) <~ kw("is") ^^ Binder) ~ expr(exprPrim) ^^ BindVal;
@@ -131,7 +131,7 @@ object Syntax extends TokenParsers with ImplicitConversions {
       exprEnd ^^ withLocalBinds |
     kw("(") ~> expr(exprPrim) <~ kw(")");
   
-  def ref: Parser[Ref] = tok[TName] ^^ (t => Ref(t.xs.map(Name))) | tok[TId] ^^ (t => Ref(List(Name(t.xs))));
+  def ref: Parser[Ref] = tok[TName] ^^ (t => Ref(t.xs.map(BindName))) | tok[TId] ^^ (t => Ref(List(BindName(t.xs))));
 
   def valParam: Parser[Binder] =
     bindName ^^ (x => Binder(x, None)) |
