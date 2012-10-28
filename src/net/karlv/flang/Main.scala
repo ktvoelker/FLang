@@ -1,8 +1,8 @@
 package net.karlv.flang
 import java.io.FileInputStream
+import net.karlv.flang.ast.ModDecl
 import net.karlv.flang.compile.TypeChecker
 import net.karlv.flang.ast.UMod
-import net.karlv.flang.ast.ModDecl
 
 object Main {
   

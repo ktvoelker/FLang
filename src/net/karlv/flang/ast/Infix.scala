@@ -2,6 +2,8 @@ package net.karlv.flang.ast
 
 case class Infix(assoc: InfixAssoc, prec: BigInt, ids: List[BindName]) extends ModDecl {
   
+  override def childExprs = Nil;
+  
 }
 
 abstract class InfixAssoc {}

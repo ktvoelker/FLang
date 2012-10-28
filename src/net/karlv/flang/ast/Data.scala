@@ -4,4 +4,6 @@ case class Data(isOpen: Boolean, id: BindName, parent: Option[UTy.Expr], ty: UTy
   
   def isClosed = !isOpen;
   
+  override def childExprs = Nil;
+  
 }

@@ -2,16 +2,8 @@
 TO-DO
 =====
 
-Phases
-1. Scope linker (link local scopes to their parents)
-2. Name resolution (add a pointer from each ref to its binding) (also make sure refs don't violate sigs)
-3. Module application (generate records for all module applications and update all module expressions to be refs)
-4. Data type-checking (make sure all data declarations are valid)
-5. Value type-checking (make sure all value declarations have a correct type signature; infer missing ones)
-6. Module sig-checking (make sure all modules obey their declared sigs)
-7. Simplification
-8. Optimization
-9. Code generation
+Write scope-linking code
+  This is easier to do as expr nodes are constructed, rather than as a separate phase
 
 Improve error messages in the parser
 

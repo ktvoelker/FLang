@@ -2,6 +2,8 @@ package net.karlv.flang.ast
 
 trait SigDecl extends USig.Decl {
 
+  override def childExprs = Nil;
+  
 }
 
 case class SigModule(id: BindName, ty: UTy.Expr) extends SigDecl {

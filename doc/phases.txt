@@ -1,0 +1,16 @@
+
+Phases of Compilation
+=====================
+
+ 1. Lexical analysis
+ 2. Syntactic analysis
+ 3. Scope linker (link local scopes to their parents)
+ 
+ 4. Name resolution (add a pointer from each ref to its binding) (also make sure refs don't violate sigs)
+ 5. Module application (generate records for all module applications and update all module expressions to be refs)
+ 6. Data type-checking (make sure all data declarations are valid)
+ 7. Value type-checking (make sure all value declarations have a correct type signature; infer missing ones)
+ 8. Module sig-checking (make sure all modules obey their declared sigs)
+ 9. Simplification
+10. Optimization
+11. Code generation
