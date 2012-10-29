@@ -33,3 +33,5 @@ abstract class ErrorType {
 }
 
 case object ENotImpl extends ErrorType { }
+
+case object EImpossible extends ErrorType { }

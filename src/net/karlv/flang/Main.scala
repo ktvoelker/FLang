@@ -3,6 +3,7 @@ import java.io.FileInputStream
 import net.karlv.flang.ast.ModDecl
 import net.karlv.flang.compile.TypeChecker
 import net.karlv.flang.ast.UMod
+import net.karlv.flang.compile.ModInterpreter
 
 object Main {
   
@@ -18,7 +19,8 @@ object Main {
   };
   
   def compile(files: List[ModDecl]): Unit = {
-    new TypeChecker(UMod.Record(files)).run();
+    val root = UMod.Record(files);
+    TypeChecker(ModInterpreter(UMod.emptyEnv(root), root));
     files.foreach(file => print(new TreeFormatter(file).str));
   };
 

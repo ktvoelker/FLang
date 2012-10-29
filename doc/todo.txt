@@ -2,8 +2,22 @@
 TO-DO
 =====
 
-Write scope-linking code
-  This is easier to do as expr nodes are constructed, rather than as a separate phase
+Write name resolution code
+
+	The current design suggested by NameResolver is probably not good. We should think of the world of
+	modules as a program to be interpreted at compile-time. So we simply traverse the world of modules
+	from the top down, replacing anything other than UMod.Record with the UMod.Record that results from
+	evaluating the module expression. Along the way, we may encounter type, value, and sig bindings.
+	During this pass, we should ignore these bindings. They cannot contain module expressions.
+	
+	In order to do top-down traversals, of course, we need to define a case-by-case function over the
+	possible expression types. But due to the Universe concept, this isn't easy, since we'd have to put
+	these function implementations inside the generic classes that don't know whether they are module
+	or value expressions.
+	
+	So, let's define another class (inside the Universe?) which is the class of case-by-case functions.
+	It'll do the case analysis in apply() and call out to overloaded abstract spec defs which refer
+	to the particular types.
 
 Improve error messages in the parser
 
