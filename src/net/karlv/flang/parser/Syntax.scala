@@ -43,9 +43,11 @@ object Syntax extends TokenParsers with ImplicitConversions {
   
   def sigHeader = genModuleHeader("sig", TyAuto);
   
-  def moduleApp: Parser[UMod.Expr] = modulePrim ~ rep(modulePrim) ^^ UMod.App;
+  def moduleExpr: Parser[UMod.Expr] =
+    kw("fn") ~> ((rep(valParam) <~ kw("->")) ~ moduleExpr ^^ UMod.Lam) |
+    modulePrim ~ rep(modulePrim) ^^ UMod.App;
 
-  def modulePrim: Parser[UMod.Expr] = ref[UMod.type](UMod) | kw("(") ~> moduleApp <~ kw(")");
+  def modulePrim: Parser[UMod.Expr] = ref[UMod.type](UMod) | kw("(") ~> moduleExpr <~ kw(")");
   
   def openQual: Parser[OpenQual] =
     ((kw("except") | kw("only")) ^^ (_ === "only")) ~ rep1(bindName) ^^ OpenQual;
@@ -55,11 +57,11 @@ object Syntax extends TokenParsers with ImplicitConversions {
   def sigDecls: Parser[USig.Expr] = rep(sigDecl) ^^ USig.Record;
   
   def decl: Parser[ModDecl] =
-    kw("open") ~> moduleApp ~ opt(openQual) ^^ Open |
+    kw("open") ~> moduleExpr ~ opt(openQual) ^^ Open |
     (kw("val") ~> (bindName ~ opt(hasType) ^^ Binder) <~ kw("is")) ~ expr(exprPrim) ^^ BindVal |
     kw("data") ~> (dataOpen ~ bindName ~ opt(parentType) <~ kw("is")) ~ ty ^^ Data |
     kw("type") ~> ((bindName ~ opt(hasType) ^^ Binder) <~ kw("is")) ~ ty ^^ BindType |
-    (moduleHeader <~ kw("is")) ~ (moduleApp | decls <~ kw("end")) ^^ BindModule |
+    (moduleHeader <~ kw("is")) ~ (moduleExpr | decls <~ kw("end")) ^^ BindModule |
     (sigHeader <~ kw("is")) ~ sigDecls <~ kw("end") ^^ BindSig |
     kw("infix") ~> infixAssoc ~ (tok[TInt] ^^ (x => x.n)) ~ rep1(bindName) ^^ Infix;
   
