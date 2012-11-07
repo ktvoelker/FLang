@@ -1,9 +1,7 @@
 package net.karlv.flang
 import java.io.FileInputStream
-import net.karlv.flang.ast.ModDecl
-import net.karlv.flang.compile.TypeChecker
-import net.karlv.flang.ast.UMod
-import net.karlv.flang.compile.ModInterpreter
+import net.karlv.flang.ast._
+import net.karlv.flang.compile._
 
 object Main {
   
@@ -20,7 +18,7 @@ object Main {
   
   def compile(files: List[ModDecl]): Unit = {
     val root = UMod.Record(files);
-    TypeChecker(ModInterpreter(UMod.emptyEnv(root), root));
+    TypeChecker(ModInterpreter(Env(root), root));
     files.foreach(file => print(new TreeFormatter(file).str));
   };
 
