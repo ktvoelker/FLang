@@ -1,3 +1,3 @@
-/bin
-/.cache
+.*.sw*
+/project
 /target
