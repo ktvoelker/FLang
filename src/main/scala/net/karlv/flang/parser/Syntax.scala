@@ -99,7 +99,8 @@ object Syntax extends TokenParsers with ImplicitConversions {
     prim ~ rep(prim) ^^ UVal.App;
   
   def exprOp(prim: Parser[UVal.Expr]): Parser[(UVal.Expr, UVal.Expr)] =
-    (tok[TExprOp] ^^ (x => UVal.Ref(List(BindName(x.xs))))) ~ exprApp(prim) ^^ (x => (x._1, x._2));
+    (tok[TExprOp] ^^ (x => UVal.Ref(BindName(x.xs)))) ~ exprApp(prim) ^^
+    (x => (x._1, x._2));
   
   def localBind: Parser[ValDecl] =
       (bindName ~ opt(hasType) <~ kw("is") ^^ Binder) ~ expr(exprPrim) ^^ BindLocalVal;
@@ -136,7 +137,7 @@ object Syntax extends TokenParsers with ImplicitConversions {
     kw("(") ~> expr(exprPrim) <~ kw(")");
   
   def ref[U <: Universe](implicit u: U): Parser[U#Ref] =
-    tok[TName] ^^ (t => u.Ref(t.xs.map(BindName))) | tok[TId] ^^ (t => u.Ref(List(BindName(t.xs))));
+    tok[TId] ^^ (t => u.Ref(BindName(t.xs)));
 
   def valParam: Parser[Binder] =
     bindName ^^ (x => Binder(x, None)) |
@@ -157,12 +158,16 @@ object Syntax extends TokenParsers with ImplicitConversions {
     tok[TInt] ^^ (t => PatInt(t.n)) |
     tok[TString] ^^ (t => PatString(t.xs)) |
     tok[TChar] ^^ (t => PatChar(t.char));
+
+  def name = rep1sep(tok[TId] ^^ (t => BindName(t.xs)), kw("."));
   
-  def patApp: Parser[Pat] = ref[UVal.type](UVal) ~ rep(pat) ^^
-      (x => if (x._1.names.length === 1 && x._1.names.head.namespace === NsValues) {
-        PatBind(x._1.names.head)
+  def patApp: Parser[Pat] = name ~ rep(pat) ^^
+      (x => if (x._1.length === 1 && x._1.head.namespace === NsValues) {
+        PatBind(x._1.head)
       } else {
-        PatApp(x._1, x._2)
+        PatApp(
+          x._1.tail.foldLeft[UVal.Expr](UVal.Ref(x._1.head))(UVal.Member.apply),
+          x._2)
       });
   
   def hasType: Parser[UTy.Expr] = kw(":") ~> ty;

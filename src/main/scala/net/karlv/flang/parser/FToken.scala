@@ -9,12 +9,6 @@ case class TKeyword(word: String) extends FToken(word) {}
 
 case class TId(val xs: String) extends FToken(xs) {}
 
-case class TName(raw: String) extends FToken(raw) {
-
-  val xs: List[String] = raw.split('.').toList;
-
-}
-
 case class TExprOp(val xs: String) extends FToken(xs) {}
 
 case class TInt(raw: String) extends FToken(raw) {

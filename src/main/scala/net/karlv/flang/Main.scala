@@ -18,7 +18,7 @@ object Main {
   
   def compile(files: List[ModDecl]): Unit = {
     val root = UMod.Record(files);
-    TypeChecker(ModInterpreter(Env(root), root));
+    TypeChecker(ModInterpreter(new Env(root), root));
     files.foreach(file => print(new TreeFormatter(file).str));
   };
 

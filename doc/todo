@@ -2,15 +2,9 @@
 TO-DO
 =====
 
-Change the representation of member expressions (A.B) from a monolithic Ref into two types:
-1. Ref, which indicates a single name being looked up in the ambient scope.
-2. Member, which indicates an A.B expression where B is a single name being looked up in the record
-   given by expression A.
+Add an initial pass that creates Member expressions out of OpChains with dots
+and raises errors for any dots not followed by a Ref.
 
-	We should probably change the syntax to allow for arbitrary expressions before a dot in type,
-	value, and module expressions. This means the dot is just a regular operator that can be surrounded
-	by whitespace, which should be fine.
-	   
 Algorithm R: finding the record of a module expression:
   1. If the expr is a Ref:
        If the name is bound by a Lam, find the record of the sig named in the binding's type.

@@ -19,20 +19,20 @@ object Lexicon extends Lexical with RegexParsers {
   override def whitespace: Parser[Unit] = comment | ws;
   
   override def token: Parser[Token] =
-    foldLeft1[Parser[Token]](_ | _)(keywords ++ List(id, name, exprOp, int, float, string, char));
+    foldLeft1[Parser[Token]](_ | _)(
+      keywords ++ List(id, exprOp, int, float, string, char));
   
   def foldLeft1[A](op: (A, A) => A)(xs: Iterable[A]) = xs.tail.foldLeft(xs.head)(op);
 
   def keywords: List[Parser[TKeyword]] = List(
-      "type", "val", "data", "sig", "(", ")", "open", "closed", "except", "only", "is", "rec", "let", "fn",
-      "case", "begin", "do", "?", "where", "end", "in", "of", "module", "with", ":", "<:", ":>", "->", "<-",
-      ";", "*", ".", "forall", "infix", "left", "right").map(_ ^^ TKeyword);
+      "type", "val", "data", "sig", "(", ")", "open", "closed", "except", "only", "is",
+      "rec", "let", "fn", "case", "begin", "do", "?", "where", "end", "in", "of",
+      "module", "with", ":", "<:", ":>", "->", "<-", ";", "*", ".", "forall", "infix",
+      "left", "right").map(_ ^^ TKeyword);
 
   def rawId: String = """[a-zA-Z_][a-zA-Z0-9_]*""";
   
   def id: Parser[TId] = rawId.r ^^ TId;
-
-  def name: Parser[TName] = (rawId + """(\.""" + rawId + """)*""").r ^^ TName;
 
   def exprOp: Parser[TExprOp] = """(\+|-|\*|/|=|<|>)+""".r ^^ TExprOp;
 
