@@ -2,6 +2,8 @@ package net.karlv.flang.ast
 
 trait SigDecl extends USig.Decl {
 
+  override def editExprs(f: USig.Expr => USig.Expr): SigDecl = this;
+
   override def foldExprs[T](zero: T)(f: (USig.Expr, T) => T): T = zero;
   
 }

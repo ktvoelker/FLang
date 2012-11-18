@@ -1,6 +1,8 @@
 package net.karlv.flang.ast
 
 case class Infix(assoc: InfixAssoc, prec: BigInt, ids: List[BindName]) extends ModDecl {
+
+  override def editExprs(f: UMod.Expr => UMod.Expr): Infix = this;
   
   override def foldExprs[T](zero: T)(f: (UMod.Expr, T) => T): T = zero;
   

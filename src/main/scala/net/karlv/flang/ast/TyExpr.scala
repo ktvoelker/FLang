@@ -5,12 +5,16 @@ abstract class TyExpr extends UTy.Expr {
 }
 
 case object TyAuto extends TyExpr {
+
+  override def edit(f: UTy.Expr => UTy.Expr): TyAuto.type = this;
   
   override def fold[T](zero: T)(f: (UTy.Expr, T) => T) = zero;
   
 }
 
 case object TyFn extends TyExpr {
+
+  override def edit(f: UTy.Expr => UTy.Expr): TyFn.type = this;
   
   override def fold[T](zero: T)(f: (UTy.Expr, T) => T) = zero;
   
