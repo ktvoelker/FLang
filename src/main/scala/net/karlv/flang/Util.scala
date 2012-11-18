@@ -14,9 +14,11 @@ object Util {
   def traverse(f: Product => Unit)(p: Product): Unit =
     collect(f.andThen(_ => None))(p).andThen(_ => ());
   
-  def dyn[A <: Product, B](zero: B)(f: A => B)(implicit m: Manifest[A]): (Product => B) =
+  def dyn[A <: Product, B]
+    (zero: B)(f: A => B)(implicit m: Manifest[A]): (Product => B) =
     p => if (p.getClass() == m.erasure) f(p.asInstanceOf[A]) else zero;
     
-  def dyn_[A <: Product](f: A => Unit)(implicit m: Manifest[A]): (Product => Unit) = dyn(())(f);
+  def dyn_[A <: Product](f: A => Unit)(implicit m: Manifest[A]): (Product => Unit) =
+    dyn(())(f);
 
 }

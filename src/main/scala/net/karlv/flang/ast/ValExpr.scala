@@ -6,7 +6,8 @@ abstract class ValExpr extends UVal.Expr {
 
 case class LamCase(clauses: List[LamCaseClause]) extends ValExpr {
   
-  override def children = clauses.map(_.body);
+  override def fold[T](zero: T)(f: (UVal.Expr, T) => T) =
+    clauses.map(_.body).foldRight(zero)(f);
   
 }
 
@@ -16,7 +17,7 @@ case class LamCaseClause(pats: List[Pat], body: UVal.Expr) {
 
 abstract class PrimVal extends ValExpr {
   
-  override def children = Nil;
+  override def fold[T](zero: T)(f: (UVal.Expr, T) => T) = zero;
   
 }
 

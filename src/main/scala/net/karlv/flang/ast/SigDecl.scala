@@ -2,7 +2,7 @@ package net.karlv.flang.ast
 
 trait SigDecl extends USig.Decl {
 
-  override def childExprs = Nil;
+  override def foldExprs[T](zero: T)(f: (USig.Expr, T) => T): T = zero;
   
 }
 

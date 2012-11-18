@@ -2,7 +2,7 @@ package net.karlv.flang.ast
 
 case class Infix(assoc: InfixAssoc, prec: BigInt, ids: List[BindName]) extends ModDecl {
   
-  override def childExprs = Nil;
+  override def foldExprs[T](zero: T)(f: (UMod.Expr, T) => T): T = zero;
   
 }
 

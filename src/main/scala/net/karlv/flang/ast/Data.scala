@@ -4,6 +4,6 @@ case class Data(isOpen: Boolean, id: BindName, parent: Option[UTy.Expr], ty: UTy
   
   def isClosed = !isOpen;
   
-  override def childExprs = Nil;
+  override def foldExprs[T](zero: T)(f: (UMod.Expr, T) => T): T = zero;
   
 }
