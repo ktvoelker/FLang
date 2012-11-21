@@ -1,6 +1,7 @@
 
 module Common
-  ( module Prelude
+  ( module Common
+  , module Prelude
   , module Data.List
   , Map()
   , Set()
@@ -9,6 +10,7 @@ module Common
 
 import Prelude hiding
   ( String
+  , error
   , appendFile
   , getContents
   , getLine
@@ -26,7 +28,7 @@ import Prelude hiding
   , readParen
   , reads
   , readsPrec
-  , Show()
+  , show
   , showChar
   , showList
   , showParen
@@ -48,4 +50,14 @@ import Data.Set
 import Data.Text
   ( Text()
   )
+
+#include "Qual.h"
+
+import qualified Prelude as P
+
+error :: Text -> a
+error = P.error . Text.unpack
+
+show :: (Show a) => a -> Text
+show = Text.pack . P.show
 
