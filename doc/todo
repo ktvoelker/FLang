@@ -2,6 +2,8 @@
 TO-DO
 =====
 
+All the path-dependent types are getting rather annoying; consider alternatives.
+
 Add an initial pass that creates Member expressions out of OpChains with dots
 and raises errors for any dots not followed by a Ref.
 

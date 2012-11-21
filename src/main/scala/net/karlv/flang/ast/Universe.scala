@@ -45,6 +45,14 @@ class Universe {
 
   }
 
+  case object Invalid extends Expr {
+
+    override def edit(f: Expr => Expr): Invalid.type = this;
+
+    override def fold[T](zero: T)(f: (Expr, T) => T) = zero;
+
+  }
+
   case class App(fn: Expr, args: List[Expr]) extends Expr {
 
     override def edit(f: Expr => Expr): App = App(f(fn), args.map(f));
