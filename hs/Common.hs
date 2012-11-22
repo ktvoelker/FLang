@@ -2,7 +2,10 @@
 module Common
   ( module Common
   , module Prelude
+  , module Data.Either
   , module Data.List
+  , module Data.Maybe
+  , module Data.Ratio
   , Map()
   , Set()
   , Text()
@@ -18,7 +21,6 @@ import Prelude hiding
   , putStr
   , putStrLn
   , writeFile
-  , Read()
   , ReadS
   , read
   , readFile
@@ -37,7 +39,13 @@ import Prelude hiding
   , showsPrec
   )
 
+import Data.Either
+
 import Data.List
+
+import Data.Maybe
+
+import Data.Ratio
 
 import Data.Map
   ( Map()
@@ -60,4 +68,10 @@ error = P.error . Text.unpack
 
 show :: (Show a) => a -> Text
 show = Text.pack . P.show
+
+read :: (Read a) => Text -> a
+read = P.read . Text.unpack
+
+readMaybe :: (Read a) => Text -> Maybe a
+readMaybe = fmap fst . listToMaybe . P.reads . Text.unpack
 
