@@ -1,5 +1,5 @@
 
-module Lexicon where
+module Lexer where
 
 import Text.Parsec
 import Text.Parsec.Char
@@ -9,15 +9,20 @@ import Text.Parsec.String
 import Common
 import Token
 
-tokenize :: String -> String -> [Token]
+tokenize :: String -> String -> [(Token, SourcePos)]
 tokenize name xs = case parse file name xs of
   Left err -> error . show $ err
   Right ts -> ts
 
-file :: Parser [Token]
+withPos parser = do
+  pos <- getPosition
+  ret <- parser
+  return (ret, pos)
+
+file :: Parser [(Token, SourcePos)]
 file = do
   skippable
-  xs <- many1 tok `sepEndBy` skippable
+  xs <- many1 (withPos tok) `sepEndBy` skippable
   eof
   return . concat $ xs
 

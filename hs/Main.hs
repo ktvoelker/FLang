@@ -3,7 +3,7 @@ module Main where
 
 import Common
 import Common.IO
-import Lexicon
+import Parser
 
 main = putStrLn "Hello, world!"
 

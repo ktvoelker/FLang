@@ -4,14 +4,6 @@ TO-DO
 
 Port to Haskell
 
-  Stop using Text and go back to String
-
-    Or, alternately, make ReadText and ShowText as well as the necessary parsing
-    primitives, which might be:
-      * text
-      * manyChar
-      * manyChar1
-
 All the path-dependent types are getting rather annoying; consider alternatives.
 
 Add an initial pass that creates Member expressions out of OpChains with dots
