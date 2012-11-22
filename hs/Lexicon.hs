@@ -21,13 +21,14 @@ file = do
   eof
   return . concat $ xs
 
-skippable = many $ comment <|> spaces
+skippable = many $ comment <|> (space >> return ())
 
-tok = foldl1 (<|>) $ keywords ++ [ident, exprOp, litInt, litFloat, litString, litChar]
+tok = try keywords <|> choice [ident, exprOp, litInt, litFloat, litString, litChar]
 
 keywords =
-  map ((>>= return . TKeyword) . string)
-    [ "type", "val", "data", "sig", "(", ")", "open", "closed", "except", "only", "is"
+  choice
+  . map ((>>= return . TKeyword) . string)
+  $ [ "type", "val", "data", "sig", "(", ")", "open", "closed", "except", "only", "is"
     , "rec", "let", "fn", "case", "begin", "do", "?", "where", "end", "in", "of"
     , "module", "with", ":", "<:", ":>", "->", "<-", ";", "*", ".", "forall", "infix"
     , "left", "right"
