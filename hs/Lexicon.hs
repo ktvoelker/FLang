@@ -1,27 +1,32 @@
 
 module Lexicon where
 
-#include "Common.h"
 import Text.Parsec
 import Text.Parsec.Char
 import Text.Parsec.Combinator
-import Text.Parsec.Text
+import Text.Parsec.String
+
+import Common
 import Token
 
-tokenize :: Text -> Text -> [Token]
-tokenize name xs = case parse file (Text.unpack name) xs of
+tokenize :: String -> String -> [Token]
+tokenize name xs = case parse file name xs of
   Left err -> error . show $ err
   Right ts -> ts
 
 file :: Parser [Token]
-file = skippable >> many1 tok `sepEndBy` skippable >>= return . concat
+file = do
+  skippable
+  xs <- many1 tok `sepEndBy` skippable
+  eof
+  return . concat $ xs
 
 skippable = many $ comment <|> spaces
 
 tok = foldl1 (<|>) $ keywords ++ [ident, exprOp, litInt, litFloat, litString, litChar]
 
 keywords =
-  map ((>>= return . TKeyword . Text.pack) . string . Text.unpack)
+  map ((>>= return . TKeyword) . string)
     [ "type", "val", "data", "sig", "(", ")", "open", "closed", "except", "only", "is"
     , "rec", "let", "fn", "case", "begin", "do", "?", "where", "end", "in", "of"
     , "module", "with", ":", "<:", ":>", "->", "<-", ";", "*", ".", "forall", "infix"
@@ -29,13 +34,13 @@ keywords =
     ]
 
 ident = do
-  head <- letter <|> char '_'
-  tail <- many $ alphaNum <|> char '_'
-  return . TId . Text.cons head . Text.pack $ tail
+  h <- letter <|> char '_'
+  t <- many $ alphaNum <|> char '_'
+  return . TId . (:) h $ t
 
-exprOp = many1 (oneOf "+-*/=<>") >>= return . TExprOp . Text.pack
+exprOp = many1 (oneOf "+-*/=<>") >>= return . TExprOp
 
-litInt = many1 digit >>= return . TInt . read . Text.pack
+litInt = many1 digit >>= return . TInt . read
 
 litFloat :: Parser Token
 litFloat = do
@@ -45,9 +50,9 @@ litFloat = do
     sign <- optionMaybe $ oneOf "+-"
     let signVal = if sign == Just '-' then -1 else 1
     digs <- many1 digit
-    return $ (signVal * read (Text.pack digs) :: Integer)
-  let intVal = read (Text.pack intPart) :: Integer
-  let fracVal = (read (Text.pack fracPart) :: Integer) % (10 ^ Text.length (Text.pack fracPart))
+    return $ (signVal * read digs :: Integer)
+  let intVal = read intPart :: Integer
+  let fracVal = (read fracPart :: Integer) % (10 ^ length fracPart)
   return . TFloat $ (fromInteger intVal + fracVal) * (10 ^ maybe 0 id exp)
   where
     withIntPart = do
@@ -60,23 +65,34 @@ litFloat = do
       fracPart <- many1 digit
       return ("0", fracPart)
 
-comment = undefined
+-- TODO better comment syntax, with nestable block comments
+comment :: Parser ()
+comment = do
+  string "//"
+  many . noneOf $ "\n\r"
+  optional . char $ '\r'
+  (char '\n' >> return ()) <|> eof
 
-litString = undefined
+escapeCodes =
+  map (\(e, r) -> (char e :: Parser Char) >> return r)
+    [ ('b', '\b'), ('t', '\t'), ('n', '\n'), ('f', '\f'), ('r', '\r'), ('"', '"')
+    , ('\'', '\''), ('\\', '\\')
+    ]
 
-litChar = undefined
+charContent quote = (char '\\' >> escape) <|> normal
+  where
+    escape = foldr (<|>) (unicode <|> octal) escapeCodes
+    unicode = do
+      char 'u' :: Parser Char
+      count 4 hexDigit >>= return . chr . read . ("0x" ++)
+    octal = do
+      a <- oneOf ['0' .. '3']
+      [b, c] <- count 2 . oneOf $ ['0' .. '7']
+      return . chr $ (readDigit a * (8 ^ 2)) + (readDigit b * 8) + readDigit c
+    normal = noneOf [quote, '\\']
+    readDigit = read . (: [])
 
-{--
+litString = let q = char '"' in fmap TString . between q q . many . charContent $ '"'
 
-  // TODO better comment syntax, with nestable block comments
-  def comment: Parser[Unit] = """//[^\n\r]*\r?\n""".r ~> success(())
-
-  def charContent(quote: String, card: String) =
-    ("""(\\[btnfr"'\\]|\\u[0-9a-fA-F]{4}|\\[0-3]?[0-7]{1,2}|[^\\""" + quote + "])" + card).r;
-
-  def string: Parser[TString] = "\"" ~> charContent("\"", "*") <~ "\"" ^^ TString;
-
-  def char: Parser[TChar] = "'" ~> charContent("'", "") <~ "'" ^^ TChar;
-
---}
+litChar = let q = char '\'' in fmap TChar . between q q . charContent $ '\''
 

@@ -1,7 +1,7 @@
 
 module Main where
 
-#include "Common.h"
+import Common
 import Common.IO
 import Lexicon
 

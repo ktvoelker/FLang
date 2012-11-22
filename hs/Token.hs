@@ -1,15 +1,13 @@
 
 module Token where
 
-#include "Common.h"
-
 data Token =
-    TKeyword Text
-  | TId Text
-  | TExprOp Text
+    TKeyword String
+  | TId String
+  | TExprOp String
   | TInt Integer
   | TFloat Rational
-  | TString Text
+  | TString String
   | TChar Char
   deriving (Eq, Ord, Show)
 
