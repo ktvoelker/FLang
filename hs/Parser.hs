@@ -1,8 +1,10 @@
 
 module Parser where
 
-import Text.Parsec
+import Text.Parsec hiding (parse)
 import Text.Parsec.Combinator
+
+import qualified Text.Parsec as P
 
 import Common
 import Syntax
@@ -11,12 +13,12 @@ import Lexer
 
 type Parser = Parsec [(Token, SourcePos)] ()
 
-parse :: String -> String -> [(Token, SourcePos)]
-parse name xs = case parse file name (tokenize name xs) of
+parse :: String -> String -> ModDecl
+parse name xs = case P.parse file name (tokenize name xs) of
   Left err -> error . show $ err
   Right ts -> ts
 
-tok :: (Token -> Maybe a) => Parser a
+tok :: (Token -> Maybe a) -> Parser a
 tok = token (show . fst) snd . (. fst)
 
 tokWhen :: (Token -> Bool) -> Parser Token
@@ -25,65 +27,160 @@ tokWhen pred = tok $ \t -> if pred t then Just t else Nothing
 tokEq :: Token -> Parser ()
 tokEq t = tokWhen (== t) >> return ()
 
-file = (modFile <|> sigFile) eof
+file = (modFile <|> sigFile) >>= \f -> eof >> return f
   where
     modFile = do
       h <- modHeader
-      ds <- decls
-      return . BindModule $ h ds
+      ds <- modDecls
+      return $ BindModule h ds
     sigFile = do
       h <- sigHeader
       ds <- sigDecls
-      return . BindSig $ h ds
+      return $ BindSig h ds
 
-kw = tok $ \t -> case t of
-  TKeyword xs -> Just xs
+kw xs = tok $ \t -> case t of
+  TKeyword ys | xs == ys -> Just ys
   _ -> Nothing
 
+genModHeader word = do
+  kw word
+  n <- bindName
+  t <- optionMaybe hasType
+  return $ Binder n t
+
+modHeader = genModHeader "module"
+
+sigHeader = genModHeader "sig"
+
+modExpr =
+  do
+    kw "fn"
+    ps <- many valParam
+    kw "->"
+    e <- modExpr
+    return $ Lam ps e
+  <|> do
+    (x : xs) <- many1 modPrim
+    return $ App x xs
+
+modPrim = ref <|> between (kw "(") (kw ")") modExpr
+
+openMode =
+  choice
+  . map (\(w, e) -> kw w >> return e)
+  $ [ ("except", OpenExcept)
+    , ("only", OpenOnly)
+    ]
+
+openQual = do
+  mode <- openMode
+  bs <- many1 bindName
+  return $ mode bs
+
+dataMode =
+  choice
+  . map (\(w, e) -> kw w >> return e)
+  $ [ ("open", DataOpen)
+    , ("closed", DataClosed)
+    ]
+
+parentType = kw "<:" >> ty
+
+hasType = kw ":" >> ty
+
+valParam =
+  fmap (flip Binder Nothing) bindName
+  <|>
+  do
+    kw "("
+    n <- bindName
+    t <- optionMaybe hasType
+    kw ")"
+    return $ Binder n t
+
+infixAssoc =
+  choice
+  . map (\(w, e) -> kw w >> return e)
+  $ [ ("left", InfixLeft)
+    , ("right", InfixRight)
+    ]
+
+modDecls = fmap Record . many $ modDecl
+
+modDecl =
+  do
+    kw "open"
+    e <- modExpr
+    q <- optionMaybe openQual
+    return $ Open e q
+  <|>
+  do
+    kw "val"
+    n <- bindName
+    t <- optionMaybe hasType
+    kw "is"
+    e <- expr exprPrim
+    return $ BindVal (Binder n t) e
+  <|>
+  do
+    kw "data"
+    o <- optionMaybe dataMode
+    n <- bindName
+    p <- optionMaybe parentType
+    kw "is"
+    t <- ty
+    return $ Data (maybe DataClosed id o) n p t
+  <|>
+  do
+    kw "type"
+    n <- bindName
+    lhs <- optionMaybe hasType
+    kw "is"
+    rhs <- ty
+    return $ BindType (Binder n lhs) rhs
+  <|>
+  do
+    h <- modHeader
+    kw "is"
+    e <- modExpr <|> (modDecls >>= \ds -> kw "end" >> return ds)
+    return $ BindModule h e
+  <|>
+  do
+    h <- sigHeader
+    kw "is"
+    ds <- sigDecls
+    kw "end"
+    return $ BindSig h ds
+  <|>
+  do
+    kw "infix"
+    a <- optionMaybe infixAssoc
+    n <- tok $ \t -> case t of
+      TInt n -> Just n
+      _ -> Nothing
+    bs <- many1 bindName
+    return $ Infix (maybe InfixNone id a) n bs
+
+bindName = fmap BindName $ tok $ \t -> case t of
+  TId xs -> Just xs
+  TExprOp xs -> Just xs
+  _ -> Nothing
+
+ref = fmap (Ref . BindName) $ tok $ \t -> case t of
+  TId xs -> Just xs
+  _ -> Nothing
+
+sigDecls = fmap Record . many $ sigDecl
+
+sigDecl = undefined
+
+ty = undefined
+
+expr = undefined
+
+exprPrim = undefined
+
 {--
-  
-  def genModuleHeader(word: String, ty: UTy.Expr): Parser[Binder] = kw(word) ~> bindName ~ opt(hasType) ^^ Binder;
-    
-  def moduleHeader = genModuleHeader("module", TyAuto);
-  
-  def sigHeader = genModuleHeader("sig", TyAuto);
-  
-  def moduleExpr: Parser[UMod.Expr] =
-    kw("fn") ~> ((rep(valParam) <~ kw("->")) ~ moduleExpr ^^ UMod.Lam) |
-    modulePrim ~ rep(modulePrim) ^^ UMod.App;
-
-  def modulePrim: Parser[UMod.Expr] = ref[UMod.type](UMod) | kw("(") ~> moduleExpr <~ kw(")");
-  
-  def openQual: Parser[OpenQual] =
-    ((kw("except") | kw("only")) ^^ (_ === "only")) ~ rep1(bindName) ^^ OpenQual;
-  
-  def decls: Parser[UMod.Expr] = rep(decl) ^^ UMod.Record;
-  
-  def sigDecls: Parser[USig.Expr] = rep(sigDecl) ^^ USig.Record;
-  
-  def decl: Parser[ModDecl] =
-    kw("open") ~> moduleExpr ~ opt(openQual) ^^ Open |
-    (kw("val") ~> (bindName ~ opt(hasType) ^^ Binder) <~ kw("is")) ~ expr(exprPrim) ^^ BindVal |
-    kw("data") ~> (dataOpen ~ bindName ~ opt(parentType) <~ kw("is")) ~ ty ^^ Data |
-    kw("type") ~> ((bindName ~ opt(hasType) ^^ Binder) <~ kw("is")) ~ ty ^^ BindType |
-    (moduleHeader <~ kw("is")) ~ (moduleExpr | decls <~ kw("end")) ^^ BindModule |
-    (sigHeader <~ kw("is")) ~ sigDecls <~ kw("end") ^^ BindSig |
-    kw("infix") ~> infixAssoc ~ (tok[TInt] ^^ (x => x.n)) ~ rep1(bindName) ^^ Infix;
-  
-  def bindName: Parser[BindName] = (tok[TId] ^^ (x => x.xs) | tok[TExprOp] ^^ (x => x.xs)) ^^ BindName;
-  
-  def dataOpen: Parser[Boolean] =
-    kw("open") ~> success(true) |
-    kw("closed") ~> success(false) |
-    success(false);
-    
-  def parentType: Parser[UTy.Expr] = kw("<:") ~> ty;
-
-  def infixAssoc: Parser[InfixAssoc] =
-    kw("left") ~> success(InfixLeft) |
-    kw("right") ~> success(InfixRight) |
-    success(InfixNone);
-    
   def sigDecl: Parser[SigDecl] =
     kw("val") ~> bindName ~ hasType ^^ SigVal |
     kw("type") ~> bindName ~ opt(typeRel) ^^ SigType |
@@ -140,13 +237,6 @@ kw = tok $ \t -> case t of
     kw("let") ~> ((localBinds <~ kw("in")) ~ expr(exprPrim) ^^ UVal.Let) ~
       exprEnd ^^ withLocalBinds |
     kw("(") ~> expr(exprPrim) <~ kw(")");
-  
-  def ref[U <: Universe](implicit u: U): Parser[U#Ref] =
-    tok[TId] ^^ (t => u.Ref(BindName(t.xs)));
-
-  def valParam: Parser[Binder] =
-    bindName ^^ (x => Binder(x, None)) |
-    kw("(") ~> (bindName ~ opt(hasType) ^^ Binder) <~ kw(")");
   
   def fnClause: Parser[LamCaseClause] = (rep1(pat) <~ kw("->")) ~ expr(exprPrim) ^^ LamCaseClause;
   

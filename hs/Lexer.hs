@@ -1,5 +1,5 @@
 
-module Lexer where
+module Lexer (tokenize) where
 
 import Text.Parsec
 import Text.Parsec.Char
