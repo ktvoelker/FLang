@@ -172,76 +172,161 @@ ref = fmap (Ref . BindName) $ tok $ \t -> case t of
 
 sigDecls = fmap Record . many $ sigDecl
 
-sigDecl = undefined
+tyRel = do
+  o <- tyCompOp
+  t <- ty
+  return $ TyBound o t
+
+tyCompOp =
+  choice
+  . map (\(w, e) -> kw w >> return e)
+  $ [ ("<:", OpSubTy)
+    , (">:", OpSuperTy)
+    , (":", OpEqualTy)
+    ]
+
+sigDecl =
+  do
+    kw "val"
+    n <- bindName
+    t <- hasType
+    return $ SigVal n t
+  <|>
+  do
+    kw "type"
+    n <- bindName
+    t <- optionMaybe tyRel
+    return $ SigType n t
+  <|>
+  do
+    kw "module"
+    n <- bindName
+    t <- hasType
+    return $ SigModule n t
+
+expr prim =
+  do
+    h <- exprApp prim
+    t <- many $ exprOp prim
+    return $ OpChain (Just h) t
+  <|>
+  do
+    t <- many1 $ exprOp prim
+    return $ OpChain Nothing t
+
+exprApp prim = do
+  h <- prim
+  t <- many prim
+  return $ App h t
+
+exprOp prim = do
+  o <- tok $ \t -> case t of
+    TExprOp xs -> Just . Ref . BindName $ xs
+    _ -> Nothing
+  a <- exprApp prim
+  return (o, a)
+
+localBind = do
+  n <- bindName
+  t <- optionMaybe hasType
+  kw "is"
+  e <- expr exprPrim
+  return $ BindLocalVal (Binder n t) e
+
+semi = (`sepEndBy` kw ";")
+
+localBinds = semi localBind
+
+exprEnd = do
+  bs <- optionMaybe $ kw "where" >> localBinds
+  kw "end"
+  return bs
+
+withWhere p = do
+  r <- p
+  bs <- exprEnd
+  return $ case bs of
+    Nothing -> r
+    Just bs -> Let bs r
+
+exprLam = kw "fn" >> (lamPlain <|> lamCase)
+  where
+    lamPlain = do
+      ps <- many valParam
+      kw "->"
+      e <- expr exprPrim
+      return $ Lam ps e
+    lamCase = fmap Prim $ do
+      kw "of"
+      cs <- semi fnClause
+      return $ LamCase cs
+
+fnClause = do
+  ps <- many1 pat
+  kw "->"
+  e <- expr exprPrim
+  return $ FnClause ps e
+
+exprCase = fmap Prim $ do
+  kw "case"
+  s <- expr exprPrim
+  kw "of"
+  cs <- semi caseClause
+  return $ Case s cs
+
+caseClause = do
+  p <- patApp
+  kw "->"
+  e <- expr exprPrim
+  return $ CaseClause p e
+
+exprRec = fmap Record $ kw "rec" >> localBinds
+
+exprBegin = kw "begin" >> expr exprPrim
+
+exprLit = fmap Prim . tok $ \t -> case t of
+  TInt n -> Just $ EInt n
+  TFloat n -> Just $ EFloat n
+  TString xs -> Just $ EString xs
+  TChar c -> Just $ EChar c
+  _ -> Nothing
+
+choiceWithWhere = choice . map withWhere
+
+exprPrimDo =
+  choiceWithWhere [exprLam, exprCase, exprRec, exprBegin]
+  <|>
+  ref
+  <|>
+  exprLit
+  <|>
+  (kw "?" >> return ToDo)
+
+exprDo = fmap (Prim . Do) $ kw "do" >> semi doElem
+
+exprLet = do
+  kw "let"
+  bs <- localBinds
+  kw "in"
+  e <- expr exprPrim
+  return $ Let bs e
+
+exprPrim =
+  exprPrimDo
+  <|>
+  choiceWithWhere [exprDo, exprLet]
+  <|>
+  between (kw "(") (kw ")") (expr exprPrim)
+
+doElem = undefined
+
+pat = undefined
+
+patApp = undefined
 
 ty = undefined
 
-expr = undefined
-
-exprPrim = undefined
-
-{--
-  def sigDecl: Parser[SigDecl] =
-    kw("val") ~> bindName ~ hasType ^^ SigVal |
-    kw("type") ~> bindName ~ opt(typeRel) ^^ SigType |
-    kw("module") ~> bindName ~ hasType ^^ SigModule;
-    
-  def tyCompOp: Parser[TyCompOp] =
-    kw("<:") ~> success(OpSubTy) |
-    kw("<:") ~> success(OpSuperTy) |
-    kw(":") ~> success(OpEqualTy);
-    
-  def typeRel: Parser[TyBound] = tyCompOp ~ ty ^^ TyBound;
-  
-  def expr(prim: Parser[UVal.Expr]): Parser[UVal.Expr] =
-    (exprApp(prim) ^^ Some.apply) ~ rep(exprOp(prim)) ^^ UVal.OpChain |
-    rep1(exprOp(prim)) ^^ (xs => UVal.OpChain(None, xs));
-  
-  def exprApp(prim: Parser[UVal.Expr]): Parser[UVal.Expr] =
-    prim ~ rep(prim) ^^ UVal.App;
-  
-  def exprOp(prim: Parser[UVal.Expr]): Parser[(UVal.Expr, UVal.Expr)] =
-    (tok[TExprOp] ^^ (x => UVal.Ref(BindName(x.xs)))) ~ exprApp(prim) ^^
-    (x => (x._1, x._2));
-  
-  def localBind: Parser[ValDecl] =
-      (bindName ~ opt(hasType) <~ kw("is") ^^ Binder) ~ expr(exprPrim) ^^ BindLocalVal;
-  
-  def semi[T](p: Parser[T]): Parser[List[T]] = rep1sep(p, kw(";")) <~ opt(kw(";"));
-  
-  def localBinds: Parser[List[ValDecl]] = semi(localBind);
-  
-  def exprEnd: Parser[List[ValDecl]] =
-    (opt(kw("where") ~> localBinds) ^^ (x => x.getOrElse(Nil))) <~ kw("end");
-  
-  def withLocalBinds(e: UVal.Expr, bs: List[ValDecl]) = e.withLocalBinds(bs);
-  
-  def exprPrimDo: Parser[UVal.Expr] =
-    kw("fn") ~> ((rep(valParam) <~ kw("->")) ~ expr(exprPrim) ^^ UVal.Lam) ~
-      exprEnd ^^ withLocalBinds |
-    kw("fn") ~> kw("of") ~> (semi(fnClause) ^^ LamCase) ~ exprEnd ^^ withLocalBinds |
-    kw("case") ~> ((expr(exprPrim) <~ kw("of")) ~ semi(caseClause) ^^ Case) ~
-      exprEnd ^^ withLocalBinds |
-    kw("rec") ~> (localBinds ^^ UVal.Record) ~ exprEnd ^^ withLocalBinds |
-    kw("begin") ~> expr(exprPrim) ~ exprEnd ^^ withLocalBinds |
-    ref[UVal.type](UVal) |
-    tok[TInt] ^^ (t => EInt(t.n)) |
-    tok[TFloat] ^^ (t => EFloat(t.n)) |
-    tok[TString] ^^ (t => EString(t.xs)) |
-    tok[TChar] ^^ (t => EChar(t.char)) |
-    kw("?") ~> success(UVal.ToDo);
-  
-  def exprPrim: Parser[UVal.Expr] =
-    exprPrimDo |
-    kw("do") ~> (semi(doElem) ^^ Do) ~ exprEnd ^^ withLocalBinds |
-    kw("let") ~> ((localBinds <~ kw("in")) ~ expr(exprPrim) ^^ UVal.Let) ~
-      exprEnd ^^ withLocalBinds |
-    kw("(") ~> expr(exprPrim) <~ kw(")");
-  
-  def fnClause: Parser[LamCaseClause] = (rep1(pat) <~ kw("->")) ~ expr(exprPrim) ^^ LamCaseClause;
-  
-  def caseClause: Parser[CaseClause] = (patApp <~ kw("->")) ~ expr(exprPrim) ^^ CaseClause;
-  
+{-
   def doElem: Parser[DoElem] =
     kw("let") ~> localBinds <~ kw("end") ^^ DoLet |
     (patApp <~ kw("<-")) ~ expr(exprPrim) ^^ DoBind |

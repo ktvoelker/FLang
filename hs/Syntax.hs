@@ -27,10 +27,19 @@ data ModDecl =
   | Infix InfixAssoc Integer [BindName]
   deriving (Eq, Ord, Show)
 
-data SigDecl = SigDecl
+data TyBound = TyBound TyCompOp TyExpr
   deriving (Eq, Ord, Show)
 
-data ValDecl = ValDecl
+data TyCompOp = OpSubTy | OpSuperTy | OpEqualTy
+  deriving (Eq, Ord, Show)
+
+data SigDecl =
+    SigVal BindName TyExpr
+  | SigType BindName (Maybe TyBound)
+  | SigModule BindName TyExpr
+  deriving (Eq, Ord, Show)
+
+data ValDecl = BindLocalVal Binder ValExpr
   deriving (Eq, Ord, Show)
 
 data TyDecl = TyDecl
@@ -41,9 +50,32 @@ data Expr d e =
   | App (Expr d e) [Expr d e]
   | Record [d]
   | Ref BindName
+  | OpChain (Maybe (Expr d e)) [(Expr d e, Expr d e)]
+  | Let [d] (Expr d e)
+  | Prim e
+  | ToDo
   deriving (Eq, Ord, Show)
 
-data ValPrim = ValPrim
+data ValPrim =
+    LamCase [FnClause]
+  | Case ValExpr [CaseClause]
+  | Do [DoElem]
+  | EInt Integer
+  | EFloat Rational
+  | EString String
+  | EChar Char
+  deriving (Eq, Ord, Show)
+
+data FnClause = FnClause [Pat] ValExpr
+  deriving (Eq, Ord, Show)
+
+data CaseClause = CaseClause Pat ValExpr
+  deriving (Eq, Ord, Show)
+
+data DoElem = DoElem
+  deriving (Eq, Ord, Show)
+
+data Pat = Pat
   deriving (Eq, Ord, Show)
 
 data TyPrim = TyPrim
