@@ -318,7 +318,16 @@ exprPrim =
   <|>
   between (kw "(") (kw ")") (expr exprPrim)
 
-doElem = undefined
+doElem =
+  fmap DoLet (between (kw "let") (kw "end") localBinds)
+  <|>
+  do
+    p <- patApp
+    kw "<-"
+    e <- expr exprPrim
+    return $ DoBind p e
+  <|>
+  fmap DoExpr (expr exprPrimDo)
 
 pat = undefined
 
@@ -327,11 +336,6 @@ patApp = undefined
 ty = undefined
 
 {-
-  def doElem: Parser[DoElem] =
-    kw("let") ~> localBinds <~ kw("end") ^^ DoLet |
-    (patApp <~ kw("<-")) ~ expr(exprPrim) ^^ DoBind |
-    expr(exprPrimDo) ^^ DoExpr;
-  
   def pat: Parser[Pat] =
     bindName ^^ PatBind |
     kw("(") ~> patApp <~ kw(")") |

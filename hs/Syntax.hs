@@ -72,7 +72,10 @@ data FnClause = FnClause [Pat] ValExpr
 data CaseClause = CaseClause Pat ValExpr
   deriving (Eq, Ord, Show)
 
-data DoElem = DoElem
+data DoElem =
+    DoLet [ValDecl]
+  | DoBind Pat ValExpr
+  | DoExpr ValExpr
   deriving (Eq, Ord, Show)
 
 data Pat = Pat
