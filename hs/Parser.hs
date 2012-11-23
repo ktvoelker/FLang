@@ -233,7 +233,7 @@ localBind = do
   e <- expr exprPrim
   return $ BindLocalVal (Binder n t) e
 
-semi = (`sepEndBy` kw ";")
+semi = (`sepEndBy1` kw ";")
 
 localBinds = semi localBind
 
@@ -329,33 +329,29 @@ doElem =
   <|>
   fmap DoExpr (expr exprPrimDo)
 
-pat = undefined
+pat =
+  fmap PatBind bindName
+  <|>
+  between (kw "(") (kw ")") patApp
+  <|>
+  patLit
 
-patApp = undefined
+patLit = tok $ \t -> case t of
+  TInt n -> Just $ PatInt n
+  TString xs -> Just $ PatString xs
+  TChar c -> Just $ PatChar c
+  _ -> Nothing
+
+patApp = do
+  ns <- bindName `sepEndBy1` kw "."
+  ps <- many pat
+  return $ case ns of
+    [n] | null ps && namespace n == NsValues -> PatBind n
+    (n : ns) -> PatApp (foldl Member (Ref n) ns) ps
 
 ty = undefined
 
 {-
-  def pat: Parser[Pat] =
-    bindName ^^ PatBind |
-    kw("(") ~> patApp <~ kw(")") |
-    tok[TInt] ^^ (t => PatInt(t.n)) |
-    tok[TString] ^^ (t => PatString(t.xs)) |
-    tok[TChar] ^^ (t => PatChar(t.char));
-
-  def name = rep1sep(tok[TId] ^^ (t => BindName(t.xs)), kw("."));
-  
-  def patApp: Parser[Pat] = name ~ rep(pat) ^^
-      (x => if (x._1.length === 1 && x._1.head.namespace === NsValues) {
-        PatBind(x._1.head)
-      } else {
-        PatApp(
-          x._1.tail.foldLeft[UVal.Expr](UVal.Ref(x._1.head))(UVal.Member.apply),
-          x._2)
-      });
-  
-  def hasType: Parser[UTy.Expr] = kw(":") ~> ty;
-  
   def ty: Parser[UTy.Expr] = tyQuants ~ (tyCore ~ rep(tyConstr) ^^ flip ^^ UTy.Let) ^^ UTy.Lam;
   
   def tyQuants: Parser[List[Binder]] =

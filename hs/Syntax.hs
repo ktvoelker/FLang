@@ -1,8 +1,16 @@
 
 module Syntax where
 
+import Common
+
 newtype BindName = BindName String
   deriving (Eq, Ord, Show)
+
+data Namespace = NsTypes | NsValues
+  deriving (Eq, Ord, Show)
+
+namespace (BindName (x : _)) | isUpper x = NsTypes
+namespace _ = NsValues
 
 data OpenQual = OpenExcept [BindName] | OpenOnly [BindName]
   deriving (Eq, Ord, Show)
@@ -50,6 +58,7 @@ data Expr d e =
   | App (Expr d e) [Expr d e]
   | Record [d]
   | Ref BindName
+  | Member (Expr d e) BindName
   | OpChain (Maybe (Expr d e)) [(Expr d e, Expr d e)]
   | Let [d] (Expr d e)
   | Prim e
@@ -78,7 +87,12 @@ data DoElem =
   | DoExpr ValExpr
   deriving (Eq, Ord, Show)
 
-data Pat = Pat
+data Pat =
+    PatBind BindName
+  | PatApp ValExpr [Pat]
+  | PatInt Integer
+  | PatString String
+  | PatChar Char
   deriving (Eq, Ord, Show)
 
 data TyPrim = TyPrim
