@@ -349,25 +349,53 @@ patApp = do
     [n] | null ps && namespace n == NsValues -> PatBind n
     (n : ns) -> PatApp (foldl Member (Ref n) ns) ps
 
-ty = undefined
+ty = do
+  qs <- tyQuants
+  co <- tyCore
+  cs <- many tyConstr
+  let
+  { qf = case qs of
+      [] -> id
+      _ -> Lam qs
+  }
+  return $ qf $ case cs of
+    [] -> co
+    _ -> Let cs co
 
-{-
-  def ty: Parser[UTy.Expr] = tyQuants ~ (tyCore ~ rep(tyConstr) ^^ flip ^^ UTy.Let) ^^ UTy.Lam;
-  
-  def tyQuants: Parser[List[Binder]] =
-    opt(kw("forall") ~> rep1(bindName ^^ {Binder(_, None)}) <~ kw(".")) ^^ (m => m.getOrElse(Nil));
-  
-  def tyCore: Parser[UTy.Expr] =
-    (tyApp ^^ Some.apply) ~ rep(kw("->") ~> tyApp ^^ (x => (TyFn, x))) ^^ UTy.OpChain;
-  
-  def tyApp: Parser[UTy.Expr] = tyPrim ~ rep(tyPrim) ^^ UTy.App;
-  
-  def tyPrim: Parser[UTy.Expr] =
-    kw("(") ~> tyCore <~ kw(")") |
-    kw("*") ~> success(TyAuto) |
-    kw("rec") ~> semi(bindName ~ hasType ^^ FieldDecl) <~ kw("end") ^^ UTy.Record |
-    ref[UTy.type](UTy);
-  
-  def tyConstr: Parser[Constraint] = kw("with") ~> tyCore ~ tyCompOp ~ tyCore ^^ Constraint;
+tyQuants =
+  fmap (maybe [] $ map $ flip Binder Nothing)
+  $ optionMaybe
+  $ between (kw "forall") (kw ".")
+  $ many1 bindName
 
---}
+tyCore = do
+  h <- tyApp
+  t <- many $ kw "->" >> tyApp
+  return $ OpChain (Just h) $ map (Prim TyFn,) t
+
+tyApp = do
+  h <- tyPrim
+  t <- many tyPrim
+  return $ App h t
+
+tyPrim =
+  between (kw "(") (kw ")") tyCore
+  <|>
+  (kw "*" >> return (Prim TyAuto))
+  <|>
+  tyRec
+  <|>
+  ref
+
+tyRec = fmap Record $ between (kw "rec") (kw "end") $ semi $ do
+  n <- bindName
+  t <- hasType
+  return $ FieldDecl n t
+
+tyConstr = do
+  kw "with"
+  lhs <- tyCore
+  op <- tyCompOp
+  rhs <- tyCore
+  return $ Constraint lhs op rhs
+

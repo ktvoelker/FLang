@@ -50,7 +50,9 @@ data SigDecl =
 data ValDecl = BindLocalVal Binder ValExpr
   deriving (Eq, Ord, Show)
 
-data TyDecl = TyDecl
+data TyDecl =
+    FieldDecl BindName TyExpr
+  | Constraint TyExpr TyCompOp TyExpr
   deriving (Eq, Ord, Show)
 
 data Expr d e =
@@ -95,7 +97,7 @@ data Pat =
   | PatChar Char
   deriving (Eq, Ord, Show)
 
-data TyPrim = TyPrim
+data TyPrim = TyFn | TyAuto
   deriving (Eq, Ord, Show)
 
 type ValExpr = Expr ValDecl ValPrim
