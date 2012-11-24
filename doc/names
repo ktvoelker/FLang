@@ -99,3 +99,33 @@ ANSWER: no. In a module expression context, the information which would be store
 such a node is only going to be immediately consumed, and is already passed along as a
 part of the algorithm.
 
+
+WHAT ABOUT SIGS?
+
+When evaluating a module app, first resolve the sig of each parameter. (Note that each
+parameter must have a type, and each type must reference a sig.) Then resolve the
+argument to each parameter, and check that the form of the sig matches the form of
+the argument. (This means checking that the argument contains all the necessary names,
+and that the kind of each name is correct. But defer the checking of types for a later
+phase.)
+
+There should be an extra table which maps the absolute name corresponding to a
+parameter value to the absolute name of the sig to which it must conform. This table
+will be used in the value type-checking phase.
+
+
+WHAT ABOUT RELATIVE AND CIRCULAR REFERENCES?
+
+If the current lexical module is x.y and you are looking up a name z, first see if
+there is a z inside x.y. If not, see if there is a z inside x. If not, see if there
+is a global name z. This requires having not only a stack of the current lexical module
+names, but the entire contents of each current lexical module record. (The outermost
+is the root record which contains all top-level module names. This is where we would
+end up looking for z in the final step mentioned previously.)
+
+But this is complicated somewhat by the presence of module functions. TODO
+
+
+IT SEEMS LIKE WE SHOULD BE ABLE TO SEPARATE the resolving of names (i.e., making a
+name point to a source location) from the evaluation of module-expressions. TODO
+
