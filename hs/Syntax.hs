@@ -26,7 +26,7 @@ data Binder = Binder BindName (Maybe TyExpr)
 
 data ModDecl =
     BindModule Binder ModExpr
-  | BindSig Binder SigExpr
+  | BindSig Binder [SigDecl]
   | BindVal Binder ValExpr
   | BindType Binder TyExpr
   | Open ValExpr (Maybe OpenQual)

@@ -1,33 +1,19 @@
 
 module Common
   ( module Common
-  , module Data.Char
-  , module Data.Either
-  , module Data.List
-  , module Data.Map
-  , module Data.Maybe
-  , module Data.Ratio
-  , module Data.Set
+  , module Import
+  , module Monad
   ) where
 
-import Data.Char
-
-import Data.Either
-
-import Data.List
-
-import Data.Map
-  ( Map()
-  )
-
-import Data.Maybe
-
-import Data.Ratio
-
-import Data.Set
-  ( Set()
-  )
+import Import
+import Monad
 
 readMaybe :: (Read a) => String -> Maybe a
 readMaybe = fmap fst . listToMaybe . reads
+
+mapFst :: (a -> c) -> (a, b) -> (c, b)
+mapFst f (a, b) = (f a, b)
+
+mapSnd :: (b -> c) -> (a, b) -> (a, c)
+mapSnd f (a, b) = (a, f b)
 

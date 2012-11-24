@@ -4,6 +4,12 @@ TO-DO
 
 Port to Haskell
 
+  Come up with a coherent, written understanding of name resolution
+  
+    Consider where circular references may arise - this might be causing confusion
+
+  Turn on -Wall and -Werror!
+
 All the path-dependent types are getting rather annoying; consider alternatives.
 
 Add an initial pass that creates Member expressions out of OpChains with dots

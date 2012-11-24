@@ -1,0 +1,101 @@
+
+Static Name Resolution
+======================
+
+A name needing resolution can appear in any of these contexts:
+* As a value expression
+* As a type expression in a value type
+* As a type expression in a module sig
+* As a module expression
+* As the head of a constructor pattern
+
+Note that the head of a constructor pattern is simply a value expression that
+can always be statically evaluated in finite time.
+
+Name resolution occurs both statically and dynamically. Static name resolution
+identifies the declaration site to which a name refers. Dynamic name resolution
+identifies the storage location that a name identifies at a particular moment
+in the execution of the program.
+
+Static name resolution occurs in separate phases for modules, value types, and
+values.  Sig names are resolved with module names.
+
+
+The Module Phase
+================
+
+A module or sig name can appear in these contexts:
+* As a module expression
+* As a sig expression
+* In the head position of a Member expression
+  * Value expressions
+  * Value type expressions
+* As a prefix of the head of a constructor pattern
+
+Thus, when resolving module names, we must look at name references in all parts
+of the program. Any name a.b.c is resolved in exactly the same way no matter
+where it appears.  Once the name has been resolved, an error is raised if the
+name references an entity of the wrong kind.
+
+In the course of resolving module names, a global table will be built of all
+material modules. A material module is any unparameterized module which might
+need to exist at runtime. Some material modules can be referenced by an
+absolute sequence of names from the root namespace. All material modules will
+be stored in a map from their absolute name to their material data. Material
+modules which do not have an absolute name in the user program will be given a
+generated absolute name.
+
+A material module consists of two components:
+
+1. A reference to the module's defining record
+2. An environment mapping each in-scope module parameter to an absolute module
+   name (which can be looked up in the material modules table).
+
+UPDATE: the material modules table may also contain module functions, which are
+not actually material modules. However, module functions also need to be looked
+up by their absolute name, and may also exist in a local environment of module
+parameter values, so essentially the same data is needed for them. However,
+since module function data is only needed during module resolution and not in
+later phases, it may make more sense to use a separate table for module
+functions. This will also allow the material modules table to keep a more specific type.
+
+To resolve all module names, resolve each file in turn. If a file has already been
+resolved when its turn comes, then skip it.
+
+To resolve a module declaration, first resolve its body. Then, add it to either
+the material modules table or the module functions table and return the name under
+which it was stored.
+
+To resolve a module application, first resolve its constituent expressions. Then,
+either make a material module or material module function (depending on whether or not
+the module function was fully applied), and add it to the appropriate table.
+
+NOTE: one of the inputs to the resolution of a module expression is the name under
+which the result should be stored. This is necessary (that is, a module expression
+cannot decide what its own storage name should be) because some module expressions
+will be stored under user-defined names, while others will be stored under generated
+names.
+
+During module resolution, we must also look at member expressions in value and type
+expressions. In such a context, our behavior depends upon the form of the left-hand
+side of the member expression:
+
+* For a Ref, simply look it up and proceed.
+* For an App, look up the head. If this succeeds, proceed. (The head might be a value
+  or a type, in which case further investigation is deferred to a later phase.)
+* For any other form, the form cannot refer to a module, so leave it alone.
+
+Once the left-hand side has been identified, look at the right-hand side. If it yet
+again refers to a module, proceed. Otherwise, it refers to a value or a type, in which
+case the entire sequence of Member expressions, down to that right-hand side, should be
+replaced by a single Member expression in which the left-hand side is a special
+Resolved Module Reference which contains the absolute name by which the module can be
+found in the global table.
+
+QUESTION: are these Resolved Module Reference nodes useful in module expression
+contexts?
+
+ANSWER: no. In a module expression context, the information which would be stored in
+such a node is only going to be immediately consumed, and is already passed along as a
+part of the algorithm.
+

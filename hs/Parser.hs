@@ -170,7 +170,7 @@ ref = fmap (Ref . BindName) $ tok $ \t -> case t of
   TId xs -> Just xs
   _ -> Nothing
 
-sigDecls = fmap Record . many $ sigDecl
+sigDecls = many sigDecl
 
 tyRel = do
   o <- tyCompOp
