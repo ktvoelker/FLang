@@ -129,3 +129,33 @@ But this is complicated somewhat by the presence of module functions. TODO
 IT SEEMS LIKE WE SHOULD BE ABLE TO SEPARATE the resolving of names (i.e., making a
 name point to a source location) from the evaluation of module-expressions. TODO
 
+  Indeed: a name which appears on the RHS of a Member expression is special: it is not
+  looked up according to lexical scoping rules, but is rather found inside the value on
+  the LHS of the Member expression.
+
+
+WE WANT EACH REFERENCE TO BECOME A POINTER to its definition site. We need a functional
+pointer - a lens! So now we have an approach to take:
+
+2. Choose a lens library (preferably something simple) and make lenses for the AST
+   (hopefully this part is automated via TH)
+
+3. Write some phases:
+
+  a. Syntax cleanup
+    i. Transform opchains of dots into Member expressions
+
+  b. Check for duplicate names defined in the same scope
+
+  c. Name resolution
+    i. Only resolve names that are not on the RHS of a Member expression
+    ii. To do this, just descend over the tree, creating an Env on the way down
+        containing lenses from the root to each name in the Env, plus one more lens
+        that can be extended upon recursion (a pointer to the current node)
+    iii. While resolving names, check that names point to the expected sort of node
+
+  d. Module and sig interpretation
+    i. Build up the global module data described above
+    ii. TODO won't this complicate type-checking by forcing us to check every
+        material module, when that's a lot of extra work compared to checking every
+        textual module?
