@@ -2,82 +2,35 @@
 TO-DO
 =====
 
-Port to Haskell
+The semicolons are unfortunate! Try to eliminate them to make case blocks look nicer.
+  Periods?
+  Curly braces?
 
-  Come up with a coherent, written understanding of name resolution
-  
-    Consider where circular references may arise - this might be causing confusion
+Think about nicer function definition syntax, too.
 
-  Turn on -Wall and -Werror!
+Make it possible to define an "otherwise" case in a function-case without having to
+write one underscore for each argument.
 
-All the path-dependent types are getting rather annoying; consider alternatives.
+Turn on -Wall and -Werror!
 
-Add an initial pass that creates Member expressions out of OpChains with dots
-and raises errors for any dots not followed by a Ref.
-
-Algorithm R: finding the record of a module expression:
-  1. If the expr is a Ref:
-       If the name is bound by a Lam, find the record of the sig named in the
-       binding's type.
-       If the name is bound by a BindModule, get that BindModule.*
-     If the expr is a Member A.B, find the record of A:
-       If B is a BindModule, get that BindModule.
-       If B is a SigModule, find the record of the sig named in the type and skip
-       step 2.
-     If the expr is an App (A B), find the record of A and skip step 2.
-  2. If the BindModule names a sig in the type, find the record of the named sig.
-     If the BindModule's body is a record, get that record.
-     Otherwise, get the record of the body.
-     
-* NOTE: every module expression (other than the root record) exists inside a
-BindModule, which exists inside a nested sequence of ancestral BindModules. The
-names in scope for a Ref are all of the names bound by its ancestor
-BindModules, as well as all of their sibling BindModules.
-     
-Algorithm S: finding the record of a sig by name:
-  The name must be bound by an in-scope BindSig. The body of a BindSig is
-  always a record.
-
-Algorithm N: module type-checking
-
-1. Link every module expression to its record, and every module Ref to its
-BindModule or SigModule.
-	 
-   Note: if any module expression's record is a parent of that expression in
-   the AST, there is a circular reference error, except if the expression is
-   the LHS of a Member expression.
-	 
-   Note: the second half of #1 requires a bit of an addition to Algorithm R.
-   All the information is already there, but we're not explicitly pointing out
-   where the BindModule/SigModule of a Ref comes from.
-	 
-   Note: it would seem that we don't need to link the records, just check them
-   for circularity.
-   We do, however, need to link the refs. (Although this can be done at runtime
-   in the interpreter.)
-	 
-   Perhaps this whole complicated first phase isn't needed? As long as the
-   interpreter can properly detect circularity.
-	 
-2. Fully evaluate the body of every BindModule, and attach the resulting value
-to the BindModule node.
-
-     Note: this can be done in the style of a recursive-descent interpreter
-     which catches type errors at runtime.
-     
-     Note: the value produced by evaluation should be a special piece of data
-     that can be passed as a special parameter representing the module at
-     runtime. That way, the compiler need only emit one function in the output
-     for each textual function in the input. Functions will be parameterized by
-     the data about the module in which they are currently executing. (Note
-     that this is only true for parameterized modules. Other modules will have
-     no such data, and we should avoid passing the extra parameter in that
-     case.)
-
-
-Improve error messages in the parser
+Add simpler syntax for the common cases of algebraic data types
 
 Add syntax for decision tables
 
 Add a new form of type constraints that limit effects
+
+Think about how to solve the problem of the fact that many sigs could be
+expressed in many equivalent ways, and whichever of the ways we don't choose
+would have provided all kinds of utility functions that will end up defined
+outside the sig. But it seems unnatural to force a particular choice of
+definining functions across all implementations of that sig.
+
+  This could be a great use of something like datalog. Let the author of the sig
+  give rules describing whether or not any particular subset of the functions makes
+  a valid implementation.
+
+Think about how to make sigs and modules as easy to use as typeclasses in the common
+case.
+
+Improve error messages in the parser
 
