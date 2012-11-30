@@ -97,7 +97,7 @@ data Pat =
   | PatChar Char
   deriving (Eq, Ord, Show)
 
-data TyPrim = TyFn | TyAuto
+data TyPrim = TyFn | TyAuto | TyEmpty
   deriving (Eq, Ord, Show)
 
 type ValExpr = Expr ValDecl ValPrim

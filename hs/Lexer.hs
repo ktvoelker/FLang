@@ -28,11 +28,11 @@ file = do
 
 skippable = many $ comment <|> (space >> return ())
 
-tok = try keywords <|> choice [ident, exprOp, litInt, litFloat, litString, litChar]
+tok = keywords <|> choice [ident, exprOp, litInt, litFloat, litString, litChar]
 
 keywords =
   choice
-  . map ((>>= return . TKeyword) . string)
+  . map (try . (>>= return . TKeyword) . string)
   $ [ "type", "val", "data", "sig", "(", ")", "open", "closed", "except", "only", "is"
     , "rec", "let", "fn", "case", "begin", "do", "?", "where", "end", "in", "of"
     , "module", "with", ":", "<:", ":>", "->", "<-", ";", "*", ".", "forall", "infix"

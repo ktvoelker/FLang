@@ -18,14 +18,14 @@ parse name xs = case P.parse file name (tokenize name xs) of
   Left err -> error . show $ err
   Right ts -> ts
 
-tok :: (Token -> Maybe a) -> Parser a
-tok = token (show . fst) snd . (. fst)
+tok :: String -> (Token -> Maybe a) -> Parser a
+tok msg = (<?> msg) . token (show . fst) snd . (. fst)
 
-tokWhen :: (Token -> Bool) -> Parser Token
-tokWhen pred = tok $ \t -> if pred t then Just t else Nothing
+tokWhen :: String -> (Token -> Bool) -> Parser Token
+tokWhen msg pred = tok msg $ \t -> if pred t then Just t else Nothing
 
 tokEq :: Token -> Parser ()
-tokEq t = tokWhen (== t) >> return ()
+tokEq t = tokWhen (show t) (== t) >> return ()
 
 file = (modFile <|> sigFile) >>= \f -> eof >> return f
   where
@@ -38,9 +38,7 @@ file = (modFile <|> sigFile) >>= \f -> eof >> return f
       ds <- sigDecls
       return $ BindSig h ds
 
-kw xs = tok $ \t -> case t of
-  TKeyword ys | xs == ys -> Just ys
-  _ -> Nothing
+kw = tokEq . TKeyword
 
 genModHeader word = do
   kw word
@@ -123,12 +121,14 @@ modDecl =
     return $ BindVal (Binder n t) e
   <|>
   do
+    a <- optionMaybe $ kw "empty"
     kw "data"
     o <- optionMaybe dataMode
     n <- bindName
     p <- optionMaybe parentType
-    kw "is"
-    t <- ty
+    t <- case a of
+      Nothing -> kw "is" >> ty
+      Just _ -> return $ Prim TyEmpty
     return $ Data (maybe DataClosed id o) n p t
   <|>
   do
@@ -155,18 +155,18 @@ modDecl =
   do
     kw "infix"
     a <- optionMaybe infixAssoc
-    n <- tok $ \t -> case t of
+    n <- tok "literal integer" $ \t -> case t of
       TInt n -> Just n
       _ -> Nothing
     bs <- many1 bindName
     return $ Infix (maybe InfixNone id a) n bs
 
-bindName = fmap BindName $ tok $ \t -> case t of
+bindName = fmap BindName $ tok "identifier or operator" $ \t -> case t of
   TId xs -> Just xs
   TExprOp xs -> Just xs
   _ -> Nothing
 
-ref = fmap (Ref . BindName) $ tok $ \t -> case t of
+ref = fmap (Ref . BindName) $ tok "identifier" $ \t -> case t of
   TId xs -> Just xs
   _ -> Nothing
 
@@ -213,18 +213,25 @@ expr prim =
   do
     t <- many1 $ exprOp prim
     return $ OpChain Nothing t
-
-exprApp prim = do
-  h <- prim
-  t <- many prim
-  return $ App h t
+  <?>
+  "expression"
 
 exprOp prim = do
-  o <- tok $ \t -> case t of
+  o <- tok "operator" $ \t -> case t of
     TExprOp xs -> Just . Ref . BindName $ xs
     _ -> Nothing
   a <- exprApp prim
   return (o, a)
+
+exprApp prim = do
+  h <- exprMember prim
+  t <- many $ exprMember prim
+  return $ App h t
+
+exprMember prim = do
+  h <- prim
+  t <- many $ kw "." >> bindName
+  return $ foldl Member h t
 
 localBind = do
   n <- bindName
@@ -284,7 +291,7 @@ exprRec = fmap Record $ kw "rec" >> localBinds
 
 exprBegin = kw "begin" >> expr exprPrim
 
-exprLit = fmap Prim . tok $ \t -> case t of
+exprLit = fmap Prim . tok "literal primitive" $ \t -> case t of
   TInt n -> Just $ EInt n
   TFloat n -> Just $ EFloat n
   TString xs -> Just $ EString xs
@@ -328,6 +335,8 @@ doElem =
     return $ DoBind p e
   <|>
   fmap DoExpr (expr exprPrimDo)
+  <?>
+  "do-element"
 
 pat =
   fmap PatBind bindName
@@ -335,8 +344,10 @@ pat =
   between (kw "(") (kw ")") patApp
   <|>
   patLit
+  <?>
+  "pattern"
 
-patLit = tok $ \t -> case t of
+patLit = tok "literal primitive pattern" $ \t -> case t of
   TInt n -> Just $ PatInt n
   TString xs -> Just $ PatString xs
   TChar c -> Just $ PatChar c
