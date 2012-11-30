@@ -27,16 +27,7 @@ tokWhen msg pred = tok msg $ \t -> if pred t then Just t else Nothing
 tokEq :: Token -> Parser ()
 tokEq t = tokWhen (show t) (== t) >> return ()
 
-file = (modFile <|> sigFile) >>= \f -> eof >> return f
-  where
-    modFile = do
-      h <- modHeader
-      ds <- modDecls
-      return $ BindModule h ds
-    sigFile = do
-      h <- sigHeader
-      ds <- sigDecls
-      return $ BindSig h ds
+file = fileDecl >>= (eof >>) . return
 
 kw = tokEq . TKeyword
 
@@ -50,14 +41,17 @@ modHeader = genModHeader "module"
 
 sigHeader = genModHeader "sig"
 
+modExpr :: Parser ModExpr
 modExpr =
   do
     kw "fn"
     ps <- many valParam
     kw "->"
-    e <- modExpr
-    return $ Lam ps e
-  <|> do
+    fmap (Lam ps) modExpr
+  <|>
+  fmap Record (between (kw "rec") (kw "end") $ many modDecl)
+  <|>
+  do
     (x : xs) <- many1 modPrim
     return $ App x xs
 
@@ -103,12 +97,12 @@ infixAssoc =
     , ("right", InfixRight)
     ]
 
-modDecls = fmap Record . many $ modDecl
-
 modDecl =
+  fileDecl
+  <|>
   do
     kw "open"
-    e <- modExpr
+    e <- expr exprPrim
     q <- optionMaybe openQual
     return $ Open e q
   <|>
@@ -140,19 +134,6 @@ modDecl =
     return $ BindType (Binder n lhs) rhs
   <|>
   do
-    h <- modHeader
-    kw "is"
-    e <- modExpr <|> (modDecls >>= \ds -> kw "end" >> return ds)
-    return $ BindModule h e
-  <|>
-  do
-    h <- sigHeader
-    kw "is"
-    ds <- sigDecls
-    kw "end"
-    return $ BindSig h ds
-  <|>
-  do
     kw "infix"
     a <- optionMaybe infixAssoc
     n <- tok "literal integer" $ \t -> case t of
@@ -160,6 +141,19 @@ modDecl =
       _ -> Nothing
     bs <- many1 bindName
     return $ Infix (maybe InfixNone id a) n bs
+
+fileDecl =
+  do
+    h <- modHeader
+    kw "is"
+    fmap (BindModule h) modExpr
+  <|>
+  do
+    h <- sigHeader
+    kw "is"
+    ds <- sigDecls
+    kw "end"
+    return $ BindSig h ds
 
 bindName = fmap BindName $ tok "identifier or operator" $ \t -> case t of
   TId xs -> Just xs

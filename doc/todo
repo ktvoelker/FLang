@@ -8,6 +8,8 @@ The semicolons are unfortunate! Try to eliminate them to make case blocks look n
 
 Think about nicer function definition syntax, too.
 
+Bring back a nicer syntax for defining modules
+
 Make it possible to define an "otherwise" case in a function-case without having to
 write one underscore for each argument.
 
@@ -33,4 +35,7 @@ Think about how to make sigs and modules as easy to use as typeclasses in the co
 case.
 
 Improve error messages in the parser
+
+Use a proper type for keywords rather than storing them in strings, since it can lead
+to errors when a keyword is referenced in the parser that the lexer doesn't produce.
 
