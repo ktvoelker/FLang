@@ -102,7 +102,7 @@ modDecl =
   <|>
   do
     kw "open"
-    e <- expr exprPrim
+    e <- valExpr
     q <- optionMaybe openQual
     return $ Open e q
   <|>
@@ -111,7 +111,7 @@ modDecl =
     n <- bindName
     t <- optionMaybe hasType
     kw "is"
-    e <- expr exprPrim
+    e <- valExpr
     return $ BindVal (Binder n t) e
   <|>
   do
@@ -198,22 +198,26 @@ sigDecl =
     t <- hasType
     return $ SigModule n t
 
-expr prim =
+valExpr = expr "expression" valOp valPrim
+
+valOp = tok "operator" $ \t -> case t of
+  TExprOp xs -> Just . Ref . BindName $ xs
+  _ -> Nothing
+
+expr descr op prim =
   do
     h <- exprApp prim
-    t <- many $ exprOp prim
+    t <- many $ exprOp op prim
     return $ OpChain (Just h) t
   <|>
   do
-    t <- many1 $ exprOp prim
+    t <- many1 $ exprOp op prim
     return $ OpChain Nothing t
   <?>
-  "expression"
+  descr
 
-exprOp prim = do
-  o <- tok "operator" $ \t -> case t of
-    TExprOp xs -> Just . Ref . BindName $ xs
-    _ -> Nothing
+exprOp op prim = do
+  o <- op
   a <- exprApp prim
   return (o, a)
 
@@ -231,7 +235,7 @@ localBind = do
   n <- bindName
   t <- optionMaybe hasType
   kw "is"
-  e <- expr exprPrim
+  e <- valExpr
   return $ BindLocalVal (Binder n t) e
 
 semi = (`sepEndBy1` kw ";")
@@ -255,7 +259,7 @@ exprLam = kw "fn" >> (lamPlain <|> lamCase)
     lamPlain = do
       ps <- many valParam
       kw "->"
-      e <- expr exprPrim
+      e <- valExpr
       return $ Lam ps e
     lamCase = fmap Prim $ do
       kw "of"
@@ -265,12 +269,12 @@ exprLam = kw "fn" >> (lamPlain <|> lamCase)
 fnClause = do
   ps <- many1 pat
   kw "->"
-  e <- expr exprPrim
+  e <- valExpr
   return $ FnClause ps e
 
 exprCase = fmap Prim $ do
   kw "case"
-  s <- expr exprPrim
+  s <- valExpr
   kw "of"
   cs <- semi caseClause
   return $ Case s cs
@@ -278,12 +282,12 @@ exprCase = fmap Prim $ do
 caseClause = do
   p <- patApp
   kw "->"
-  e <- expr exprPrim
+  e <- valExpr
   return $ CaseClause p e
 
 exprRec = fmap Record $ kw "rec" >> localBinds
 
-exprBegin = kw "begin" >> expr exprPrim
+exprBegin = kw "begin" >> valExpr
 
 exprLit = fmap Prim . tok "literal primitive" $ \t -> case t of
   TInt n -> Just $ EInt n
@@ -294,7 +298,7 @@ exprLit = fmap Prim . tok "literal primitive" $ \t -> case t of
 
 choiceWithWhere = choice . map withWhere
 
-exprPrimDo =
+valPrimDo =
   choiceWithWhere [exprLam, exprCase, exprRec, exprBegin]
   <|>
   ref
@@ -309,15 +313,15 @@ exprLet = do
   kw "let"
   bs <- localBinds
   kw "in"
-  e <- expr exprPrim
+  e <- valExpr
   return $ Let bs e
 
-exprPrim =
-  exprPrimDo
+valPrim =
+  valPrimDo
   <|>
   choiceWithWhere [exprDo, exprLet]
   <|>
-  between (kw "(") (kw ")") (expr exprPrim)
+  between (kw "(") (kw ")") valExpr
 
 doElem =
   fmap DoLet (between (kw "let") (kw "end") localBinds)
@@ -325,10 +329,10 @@ doElem =
   do
     p <- patApp
     kw "<-"
-    e <- expr exprPrim
+    e <- valExpr
     return $ DoBind p e
   <|>
-  fmap DoExpr (expr exprPrimDo)
+  fmap DoExpr (expr "expression" valOp valPrimDo)
   <?>
   "do-element"
 
@@ -373,15 +377,9 @@ tyQuants =
   $ between (kw "forall") (kw ".")
   $ many1 bindName
 
-tyCore = do
-  h <- tyApp
-  t <- many $ kw "->" >> tyApp
-  return $ OpChain (Just h) $ map (Prim TyFn,) t
+tyCore = expr "type" tyOp tyPrim
 
-tyApp = do
-  h <- tyPrim
-  t <- many tyPrim
-  return $ App h t
+tyOp = kw "->" >> return (Prim TyFn)
 
 tyPrim =
   between (kw "(") (kw ")") tyCore
