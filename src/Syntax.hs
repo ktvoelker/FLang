@@ -30,7 +30,7 @@ data ModDecl =
   | BindVal Binder ValExpr
   | BindType Binder TyExpr
   | Open ValExpr (Maybe OpenQual)
-  | Data DataMode BindName (Maybe TyExpr) TyExpr
+  | Data DataMode BindName (Maybe TyExpr) TyExpr [ModDecl]
   | Type Binder TyExpr
   | Infix InfixAssoc Integer [BindName]
   deriving (Eq, Ord, Show)

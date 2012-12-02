@@ -103,6 +103,14 @@ infixAssoc =
     , ("right", InfixRight)
     ]
 
+dataDecl par = do
+  o <- optionMaybe dataMode
+  n <- bindName
+  p <- par
+  t <- optionMaybe $ kw "is" >> ty
+  c <- (kw ";" >> return []) <|> (braces . many . dataDecl $ return Nothing)
+  return $ Data (maybe DataClosed id o) n p (maybe (Prim TyEmpty) id t) c
+
 modDecl =
   fileDecl
   <|>
@@ -121,16 +129,8 @@ modDecl =
     fmap (BindVal $ Binder n t) valPrimEnd
   <|>
   do
-    a <- optionMaybe $ kw "empty"
     kw "data"
-    o <- optionMaybe dataMode
-    n <- bindName
-    p <- optionMaybe parentType
-    t <- case a of
-      Nothing -> kw "is" >> ty
-      Just _ -> return $ Prim TyEmpty
-    kw ";"
-    return $ Data (maybe DataClosed id o) n p t
+    dataDecl $ optionMaybe parentType
   <|>
   do
     kw "type"

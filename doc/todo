@@ -2,11 +2,6 @@
 TO-DO
 =====
 
-Add simpler syntax for:
-  * Value bindings that bind functions
-  * Module bindings that bind records
-  * Sig bindings
-
 Fix this weird thing: in a case-function, in an else clause, you might want to bind
 the arguments to variables. But you can't. So you have to use an "if" with all plain
 variables, which just makes it less obvious what it really is. So, allow the else
@@ -14,8 +9,6 @@ clause to have pattern bindings. (This can be useful even in normal cases, actua
 
 Allow multiple "if" clauses to be stacked with a single result body, so long as all
 clauses bind the same set of variables with the same types (or compatible types).
-
-Add simpler syntax for the common cases of algebraic data types
 
 Add syntax for decision tables
 

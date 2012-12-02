@@ -33,8 +33,7 @@ keywords =
   . map (try . (>>= return . TKeyword) . string)
   $ [ "type", "val", "data", "sig", "(", ")", "open", "closed", "except", "only", "is"
     , "rec", "let", "fn", "case", "if", "then", "else", "{", "}", "do", "in", "module"
-    , "with", ":", "<:", ":>", "<-", ";", "forall", "infix" , "left", "right", "empty"
-    , "of"
+    , "with", ":", "<:", ":>", "<-", ";", "forall", "infix" , "left", "right", "of"
     ]
 
 ident = do
