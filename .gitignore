@@ -1,9 +1,2 @@
 .*.sw*
-
-# Scala
-/.cache
-/project
-/target
-
-# Haskell
 /fc
