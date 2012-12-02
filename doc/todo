@@ -6,9 +6,22 @@ The semicolons are unfortunate! Try to eliminate them to make case blocks look n
   Periods?
   Curly braces?
 
+  Using the word "is" might have been a mistake, since it feels incomplete without
+    a trailing "end", which is often incorrect.
+
+    The Scala convention might work well here: an equals leads into an "expressiony"
+    thing that doesn't have an end delimiter (except when it's part of a group of
+    like things, in which case it is ended by a semicolon). Special words introduce
+    blocks that are ended with "end". (We could require a semicolon after each mod
+    decl to make things more consistent.)
+
+      Maybe we can keep more of the existing syntax but just use curly braces in places
+      where we use "end" right now. They'd be matching, so it would be easier to figure
+      out when you need an ending one.
+
 Think about nicer function definition syntax, too.
 
-Bring back a nicer syntax for defining modules
+Bring back a nicer syntax for defining modules and sigs
 
 Make it possible to define an "otherwise" case in a function-case without having to
 write one underscore for each argument.

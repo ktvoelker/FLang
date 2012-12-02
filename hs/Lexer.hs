@@ -34,9 +34,9 @@ keywords =
   choice
   . map (try . (>>= return . TKeyword) . string)
   $ [ "type", "val", "data", "sig", "(", ")", "open", "closed", "except", "only", "is"
-    , "rec", "let", "fn", "case", "begin", "do", "?", "where", "end", "in", "of"
-    , "module", "with", ":", "<:", ":>", "->", "<-", ";", "*", ".", "forall", "infix"
-    , "left", "right", "empty"
+    , "rec", "let", "fn", "case", "begin", "do", "where", "end", "in", "of"
+    , "module", "with", ":", "<:", ":>", "<-", ";", "forall", "infix" , "left"
+    , "right", "empty"
     ]
 
 ident = do
@@ -44,7 +44,7 @@ ident = do
   t <- many $ alphaNum <|> char '_'
   return . TId . (:) h $ t
 
-exprOp = many1 (oneOf "+-*/=<>") >>= return . TExprOp
+exprOp = many1 (oneOf "+-*/=:<>.?!@#$%^&|~") >>= return . TExprOp
 
 litInt = many1 digit >>= return . TInt . read
 

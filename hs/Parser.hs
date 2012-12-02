@@ -27,9 +27,15 @@ tokWhen msg pred = tok msg $ \t -> if pred t then Just t else Nothing
 tokEq :: Token -> Parser ()
 tokEq t = tokWhen (show t) (== t) >> return ()
 
+parens = between (kw "(") (kw ")")
+
 file = fileDecl >>= (eof >>) . return
 
-kw = tokEq . TKeyword
+kw xs = tok ("'" ++ xs ++ "'") $ \t -> case t of
+  TKeyword ys | xs == ys -> Just ()
+  TId ys | xs == ys -> Just ()
+  TExprOp ys | xs == ys -> Just ()
+  _ -> Nothing
 
 genModHeader word = do
   kw word
@@ -55,7 +61,7 @@ modExpr =
     (x : xs) <- many1 modPrim
     return $ App x xs
 
-modPrim = ref <|> between (kw "(") (kw ")") modExpr
+modPrim = ref <|> parens modExpr
 
 openMode =
   choice
@@ -151,18 +157,22 @@ fileDecl =
   do
     h <- sigHeader
     kw "is"
+    kw "rec"
     ds <- sigDecls
     kw "end"
     return $ BindSig h ds
 
-bindName = fmap BindName $ tok "identifier or operator" $ \t -> case t of
+ident = tok "identifier" $ \t -> case t of
   TId xs -> Just xs
+  _ -> Nothing
+
+oper = tok "operator" $ \t -> case t of
   TExprOp xs -> Just xs
   _ -> Nothing
 
-ref = fmap (Ref . BindName) $ tok "identifier" $ \t -> case t of
-  TId xs -> Just xs
-  _ -> Nothing
+bindName = fmap BindName $ ident <|> parens oper
+
+ref = fmap (Ref . BindName) ident
 
 sigDecls = many sigDecl
 
@@ -321,7 +331,7 @@ valPrim =
   <|>
   choiceWithWhere [exprDo, exprLet]
   <|>
-  between (kw "(") (kw ")") valExpr
+  parens valExpr
 
 doElem =
   fmap DoLet (between (kw "let") (kw "end") localBinds)
@@ -337,9 +347,13 @@ doElem =
   "do-element"
 
 pat =
-  fmap PatBind bindName
+  {--
+   - We have to backtrack if this fails because it might have consumed a
+   - left parenthesis.
+   --}
+  try (fmap PatBind bindName)
   <|>
-  between (kw "(") (kw ")") patApp
+  parens patApp
   <|>
   patLit
   <?>
@@ -382,7 +396,7 @@ tyCore = expr "type" tyOp tyPrim
 tyOp = kw "->" >> return (Prim TyFn)
 
 tyPrim =
-  between (kw "(") (kw ")") tyCore
+  parens tyCore
   <|>
   (kw "*" >> return (Prim TyAuto))
   <|>

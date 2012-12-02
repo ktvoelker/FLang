@@ -5,7 +5,7 @@ empty data Bool
 data False <: Bool is *
 data True <: Bool is *
 
-val =: Ordering -> Ordering -> Bool is
+val (=): Ordering -> Ordering -> Bool is
   fn of
     LT LT -> True;
     EQ EQ -> True;
@@ -18,7 +18,7 @@ data LT <: Ordering is *
 data EQ <: Ordering is *
 data GT <: Ordering is *
 
-sig Ord is
+sig Ord is rec
   type T
   val compare: T -> T -> Ordering
 end
@@ -34,7 +34,6 @@ module sort: Ord -> * is
         end;
       end
   end
-end
 
 end
 
