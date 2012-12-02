@@ -32,8 +32,8 @@ keywords =
   choice
   . map (try . (>>= return . TKeyword) . string)
   $ [ "type", "val", "data", "sig", "(", ")", "open", "closed", "except", "only", "is"
-    , "rec", "let", "fn", "case", "begin", "do", "where", "end", "in", "of"
-    , "module", "with", ":", "<:", ":>", "<-", ";", "forall", "infix" , "left"
+    , "rec", "let", "fn", "case", "if", "then", "else", "begin", "do", "where", "end"
+    , "in", "module", "with", ":", "<:", ":>", "<-", ";", "forall", "infix" , "left"
     , "right", "empty"
     ]
 

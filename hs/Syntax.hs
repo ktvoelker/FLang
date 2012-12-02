@@ -95,6 +95,7 @@ data Pat =
   | PatInt Integer
   | PatString String
   | PatChar Char
+  | PatIgnore
   deriving (Eq, Ord, Show)
 
 data TyPrim = TyFn | TyAuto | TyEmpty

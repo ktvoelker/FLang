@@ -2,26 +2,15 @@
 TO-DO
 =====
 
-The semicolons are unfortunate! Try to eliminate them to make case blocks look nicer.
-  Periods?
-  Curly braces?
-
-  Using the word "is" might have been a mistake, since it feels incomplete without
-    a trailing "end", which is often incorrect.
-
-    The Scala convention might work well here: an equals leads into an "expressiony"
-    thing that doesn't have an end delimiter (except when it's part of a group of
-    like things, in which case it is ended by a semicolon). Special words introduce
-    blocks that are ended with "end". (We could require a semicolon after each mod
-    decl to make things more consistent.)
-
-      Maybe we can keep more of the existing syntax but just use curly braces in places
-      where we use "end" right now. They'd be matching, so it would be easier to figure
-      out when you need an ending one.
-
 Think about nicer function definition syntax, too.
 
+  If we try to just replace the word "val" with "fn" at the head of the decl,
+  we have a problem: the function could also be an argument to apply to the previous
+  expression.
+
 Bring back a nicer syntax for defining modules and sigs
+
+  And a nicer-yet syntax for modules and sigs which occupy whole files
 
 Make it possible to define an "otherwise" case in a function-case without having to
 write one underscore for each argument.
@@ -50,4 +39,6 @@ Add syntax for declaring view types
   The view type cannot be directly pattern-matched - any pattern match using the view
   type implicitly expects a value of the input type, which is then transformed with the
   view function.
+
+Allow patterns in let bindings
 

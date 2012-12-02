@@ -51,7 +51,9 @@ modExpr =
     kw "fn"
     ps <- many valParam
     kw "->"
-    fmap (Lam ps) modExpr
+    e <- modExpr
+    kw "end"
+    return $ Lam ps e
   <|>
   fmap Record (between (kw "rec") (kw "end") $ many modDecl)
   <|>
@@ -270,28 +272,32 @@ exprLam = kw "fn" >> (lamPlain <|> lamCase)
       e <- valExpr
       return $ Lam ps e
     lamCase = fmap Prim $ do
-      kw "of"
-      cs <- semi fnClause
+      cs <- many1 fnClause
       return $ LamCase cs
 
-fnClause = do
-  ps <- many1 pat
-  kw "->"
-  e <- valExpr
-  return $ FnClause ps e
+genCaseClause :: (a -> ValExpr -> b) -> a -> Parser a -> Parser b
+genCaseClause con ignore pat =
+  do
+    kw "if"
+    p <- pat
+    kw "then"
+    e <- valExpr
+    return $ con p e
+  <|>
+  do
+    kw "else"
+    e <- valExpr
+    return $ con ignore e
+
+fnClause = genCaseClause FnClause [PatIgnore] $ many1 pat
 
 exprCase = fmap Prim $ do
   kw "case"
   s <- valExpr
-  kw "of"
-  cs <- semi caseClause
+  cs <- many1 caseClause
   return $ Case s cs
 
-caseClause = do
-  p <- patApp
-  kw "->"
-  e <- valExpr
-  return $ CaseClause p e
+caseClause = genCaseClause CaseClause PatIgnore patApp
 
 exprRec = fmap Record $ kw "rec" >> localBinds
 
