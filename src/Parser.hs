@@ -5,16 +5,16 @@ import Text.Parsec hiding (parse)
 
 import qualified Text.Parsec as P
 
+import Common
 import Syntax
 import Token
-import Lexer
 
 type Parser = Parsec [(Token, SourcePos)] ()
 
-parse :: String -> String -> ModDecl
-parse name xs = case P.parse file name (tokenize name xs) of
-  Left err -> error . show $ err
-  Right ts -> ts
+parse :: String -> [(Token, SourcePos)] -> FM ModDecl
+parse name xs = case P.parse file name xs of
+  Left err -> fatal $ EParser err
+  Right decl -> return decl
 
 tok :: String -> (Token -> Maybe a) -> Parser a
 tok msg = (<?> msg) . token (show . fst) snd . (. fst)

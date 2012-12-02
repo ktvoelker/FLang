@@ -7,10 +7,10 @@ import Text.Parsec.String
 import Common
 import Token
 
-tokenize :: String -> String -> [(Token, SourcePos)]
+tokenize :: String -> String -> FM [(Token, SourcePos)]
 tokenize name xs = case parse file name xs of
-  Left err -> error . show $ err
-  Right ts -> ts
+  Left err -> fatal $ ELexer err
+  Right ts -> return ts
 
 withPos parser = do
   pos <- getPosition

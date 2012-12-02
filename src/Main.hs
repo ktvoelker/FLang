@@ -1,25 +1,40 @@
 
 module Main where
 
+import Common
 import Common.IO
 import Lexer
 import Parser
+import Resolver
 
 import Text.Show.Pretty
 
-lexPhase file = show . tokenize file
+runPhase :: (Show o) => (i -> FM o) -> i -> String
+runPhase f xs = ppShow out ++ ppShow errs
+  where
+    (out, errs) = runFM . f $ xs
 
-parsePhase file = ppShow . parse file
+lexPhase = mapM (uncurry tokenize)
+
+parsePhase = lexPhase' >=> mapM (uncurry parse)
+  where
+    lexPhase' xs = fmap (zip $ map fst xs) . lexPhase $ xs
+
+resolvePhase = parsePhase >=> resolve
 
 phases =
-  [ ("lex", lexPhase)
-  , ("parse", parsePhase)
+  [ ("lex", runPhase lexPhase)
+  , ("parse", runPhase parsePhase)
+  , ("resolve", runPhase resolvePhase)
   ]
 
+getInput xs = fmap (xs,) $ case xs of
+  "-" -> getContents
+  _ -> readFile xs
+
 main = do
-  [phase, file] <- getArgs
+  (phase : files) <- getArgs
   case lookup phase phases of
     Nothing -> putStrLn $ "Unknown phase: " ++ phase
-    Just fn ->
-      (if file == "-" then getContents else readFile file) >>= putStrLn . fn file
+    Just fn -> mapM getInput files >>= putStrLn . fn
  

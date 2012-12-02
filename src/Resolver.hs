@@ -6,46 +6,34 @@ import qualified Data.Map as Map
 import Common
 import Syntax
 
-type EnvMap e = Map [BindName] e
-
 data Global =
   Global
-  { root :: [ModDecl]
-  , mods :: EnvMap [ModDecl]
-  , sigs :: EnvMap [SigDecl]
+  { gRoot :: [ModDecl]
+  , gMods :: Map ModName [ModDecl]
+  , gSigs :: Map ModName [SigDecl]
   } deriving (Eq, Ord, Show)
 
 emptyGlobal root = Global root Map.empty Map.empty
 
-data Env e =
+data Env =
   Env
-  { curMod :: [BindName]
-  , locals :: EnvMap e
+  { eMods :: Map BindName ModExpr
+  , eSigs :: Map BindName SigExpr
+  , eTys  :: Map BindName TyExpr
+  , eVals :: Map BindName ValExpr
   } deriving (Eq, Ord, Show)
 
-emptyEnv = Env [] Map.empty
+emptyEnv = Env Map.empty Map.empty Map.empty Map.empty
 
--- TODO we need the env to have mod, sig, ty, and expr locals
-type ResolveM = ReaderT (Env ModExpr) (StateT Global FM)
+type ResolveM = ReaderT Env (StateT Global FM)
 
-{-
-resolve :: [ModDecl] -> FM ([ModDecl], Global)
-resolve ds =
-  flip runStateT (emptyGlobal ds)
-  . flip runReaderT emptyEnv
-  . mapM resolveModDecl
-  $ ds
+resolve :: [ModDecl] -> FM Global
+resolve = execStateT (runReaderT f emptyEnv) . emptyGlobal
+  where
+    f = do
+      r <- gets gRoot >>= mapM resolveModDecl
+      modify $ \g -> g { gRoot = r }
 
 resolveModDecl :: ModDecl -> ResolveM ModDecl
-resolveModDecl (BindModule name expr) = do
-  path <- asks curMod
-  let path' = name : path
-  expr' <- local (\env -> env { curMod = path' }) $ resolveModExpr expr
-  modify $ \glob -> glob { mods = Map.insert path' expr' $ mods glob }
-  return expr'
--- TODO
-
-resolveModExpr :: ModExpr -> ResolveM ModExpr
-resolveModExpr = undefined
--}
+resolveModDecl = undefined
 

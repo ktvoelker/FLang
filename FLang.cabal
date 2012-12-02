@@ -35,4 +35,5 @@ Executable fc
     MultiParamTypeClasses
     FunctionalDependencies
     ScopedTypeVariables
+    FlexibleInstances
 

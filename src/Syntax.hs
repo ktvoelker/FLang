@@ -3,6 +3,11 @@ module Syntax where
 
 import Common
 
+data ModName =
+    UserModName [BindName]
+  | GenModName Integer String
+  deriving (Eq, Ord, Show)
+
 newtype BindName = BindName String
   deriving (Eq, Ord, Show)
 
@@ -60,6 +65,7 @@ data Expr d e =
   | App (Expr d e) [Expr d e]
   | Record [d]
   | Ref BindName
+  | ModRef ModName
   | Member (Expr d e) BindName
   | OpChain (Maybe (Expr d e)) [(Expr d e, Expr d e)]
   | Let [d] (Expr d e)
