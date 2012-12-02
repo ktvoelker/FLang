@@ -27,6 +27,8 @@ tokEq t = tokWhen (show t) (== t) >> return ()
 
 parens = between (kw "(") (kw ")")
 
+braces = between (kw "{") (kw "}")
+
 file = fileDecl >>= (eof >>) . return
 
 kw xs = tok ("'" ++ xs ++ "'") $ \t -> case t of
@@ -51,11 +53,9 @@ modExpr =
     kw "fn"
     ps <- many valParam
     kw "->"
-    e <- modExpr
-    kw "end"
-    return $ Lam ps e
+    fmap (Lam ps) modExpr
   <|>
-  fmap Record (between (kw "rec") (kw "end") $ many modDecl)
+  fmap Record (kw "rec" >> braces (many modDecl))
   <|>
   do
     (x : xs) <- many1 modPrim
@@ -110,6 +110,7 @@ modDecl =
     kw "open"
     e <- valExpr
     q <- optionMaybe openQual
+    kw ";"
     return $ Open e q
   <|>
   do
@@ -117,8 +118,7 @@ modDecl =
     n <- bindName
     t <- optionMaybe hasType
     kw "is"
-    e <- valExpr
-    return $ BindVal (Binder n t) e
+    fmap (BindVal $ Binder n t) valPrimEnd
   <|>
   do
     a <- optionMaybe $ kw "empty"
@@ -129,6 +129,7 @@ modDecl =
     t <- case a of
       Nothing -> kw "is" >> ty
       Just _ -> return $ Prim TyEmpty
+    kw ";"
     return $ Data (maybe DataClosed id o) n p t
   <|>
   do
@@ -137,6 +138,7 @@ modDecl =
     lhs <- optionMaybe hasType
     kw "is"
     rhs <- ty
+    kw ";"
     return $ BindType (Binder n lhs) rhs
   <|>
   do
@@ -146,6 +148,7 @@ modDecl =
       TInt n -> Just n
       _ -> Nothing
     bs <- many1 bindName
+    kw ";"
     return $ Infix (maybe InfixNone id a) n bs
 
 fileDecl =
@@ -158,9 +161,7 @@ fileDecl =
     h <- sigHeader
     kw "is"
     kw "rec"
-    ds <- sigDecls
-    kw "end"
-    return $ BindSig h ds
+    fmap (BindSig h) . braces . semi $ sigDecl
 
 ident = tok "identifier" $ \t -> case t of
   TId xs -> Just xs
@@ -173,8 +174,6 @@ oper = tok "operator" $ \t -> case t of
 bindName = fmap BindName $ ident <|> parens oper
 
 ref = fmap (Ref . BindName) ident
-
-sigDecls = many sigDecl
 
 tyRel = do
   o <- tyCompOp
@@ -252,28 +251,23 @@ semi = (`sepEndBy1` kw ";")
 
 localBinds = semi localBind
 
-exprEnd = do
-  bs <- optionMaybe $ kw "where" >> localBinds
-  kw "end"
-  return bs
-
-withWhere p = do
-  r <- p
-  bs <- exprEnd
-  return $ case bs of
-    Nothing -> r
-    Just bs -> Let bs r
-
-exprLam = kw "fn" >> (lamPlain <|> lamCase)
+exprLam = kw "fn" >> (lamCase <|> lamPlain)
   where
+    lamCase = do
+      {--
+       - Backtracking is required since the curly brace might be the beginning of
+       - an expression rather than a block of clauses.
+       --}
+      try $ kw "{"
+      e <-
+        fmap (Prim . LamCase)
+        . many1
+        $ genCaseClause FnClause [PatIgnore] (many1 pat)
+      kw "}"
+      return e
     lamPlain = do
       ps <- many valParam
-      kw "->"
-      e <- valExpr
-      return $ Lam ps e
-    lamCase = fmap Prim $ do
-      cs <- many1 fnClause
-      return $ LamCase cs
+      fmap (Lam ps) valPrimEnd
 
 genCaseClause :: (a -> ValExpr -> b) -> a -> Parser a -> Parser b
 genCaseClause con ignore pat =
@@ -281,27 +275,22 @@ genCaseClause con ignore pat =
     kw "if"
     p <- pat
     kw "then"
-    e <- valExpr
-    return $ con p e
+    fmap (con p) valPrimEnd
   <|>
   do
     kw "else"
-    e <- valExpr
-    return $ con ignore e
-
-fnClause = genCaseClause FnClause [PatIgnore] $ many1 pat
+    fmap (con ignore) valPrimEnd
 
 exprCase = fmap Prim $ do
   kw "case"
   s <- valExpr
-  cs <- many1 caseClause
+  kw "of"
+  cs <- braces . many1 $ genCaseClause CaseClause PatIgnore patApp
   return $ Case s cs
 
-caseClause = genCaseClause CaseClause PatIgnore patApp
+exprRec = fmap Record $ kw "rec" >> braces localBinds
 
-exprRec = fmap Record $ kw "rec" >> localBinds
-
-exprBegin = kw "begin" >> valExpr
+exprBegin = braces valExpr
 
 exprLit = fmap Prim . tok "literal primitive" $ \t -> case t of
   TInt n -> Just $ EInt n
@@ -310,35 +299,26 @@ exprLit = fmap Prim . tok "literal primitive" $ \t -> case t of
   TChar c -> Just $ EChar c
   _ -> Nothing
 
-choiceWithWhere = choice . map withWhere
+valPrimBlock = choice [exprLam, exprCase, exprRec, exprBegin, exprDo, exprLet]
 
-valPrimDo =
-  choiceWithWhere [exprLam, exprCase, exprRec, exprBegin]
-  <|>
-  ref
-  <|>
-  exprLit
-  <|>
-  (kw "?" >> return ToDo)
+valPrimEnd = valPrimBlock <|> do
+  e <- valExpr
+  kw ";"
+  return e
 
-exprDo = fmap (Prim . Do) $ kw "do" >> semi doElem
+valPrim = choice [valPrimBlock, ref, exprLit, kw "?" >> return ToDo, parens valExpr]
+
+exprDo = fmap (Prim . Do) $ kw "do" >> braces (semi doElem)
 
 exprLet = do
   kw "let"
   bs <- localBinds
   kw "in"
-  e <- valExpr
+  e <- valPrimEnd
   return $ Let bs e
 
-valPrim =
-  valPrimDo
-  <|>
-  choiceWithWhere [exprDo, exprLet]
-  <|>
-  parens valExpr
-
 doElem =
-  fmap DoLet (between (kw "let") (kw "end") localBinds)
+  fmap DoLet (kw "let" >> braces localBinds)
   <|>
   do
     p <- patApp
@@ -346,7 +326,7 @@ doElem =
     e <- valExpr
     return $ DoBind p e
   <|>
-  fmap DoExpr (expr "expression" valOp valPrimDo)
+  fmap DoExpr valExpr
   <?>
   "do-element"
 

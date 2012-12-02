@@ -1,48 +1,46 @@
 
-module ordStuff is
-rec
+module ordStuff is rec {
 
-  empty data Bool
-  data False <: Bool is *
-  data True <: Bool is *
+  empty data Bool;
+  data False <: Bool is *;
+  data True <: Bool is *;
 
-  val (=): Ordering -> Ordering -> Bool is
-  fn
-    if LT LT then True
-    if EQ EQ then True
-    if GT GT then True
-    else False
-  end
+  val (=): Ordering -> Ordering -> Bool
+  is fn {
+    if LT LT then True;
+    if EQ EQ then True;
+    if GT GT then True;
+    else False;
+  }
 
-  empty data Ordering
-  data LT <: Ordering is *
-  data EQ <: Ordering is *
-  data GT <: Ordering is *
+  empty data Ordering;
+  data LT <: Ordering is *;
+  data EQ <: Ordering is *;
+  data GT <: Ordering is *;
 
-  sig Ord is
-  rec
-    type T
-    val compare: T -> T -> Ordering
-  end
+  sig Ord is rec {
+    type T;
+    val compare: T -> T -> Ordering;
+  }
 
   module sort: Ord -> * is
-  fn ord ->
-    rec
+  fn ord -> rec {
 
-      type T is ord.T
+    type T is ord.T;
 
-      val qsortList: List T -> List T is
-      fn
-        if Nil then Nil
-        if Cons x xs then
-          case partition ((= EQ) * ord.compare x) xs
-            if Pair ls gs then qsortList ls ++ Cons x (qsortList gs)
-          end
-      end
+    val qsortList: List T -> List T
+    is fn {
 
-    end
+      if Nil
+      then Nil;
 
-  end
+      if Cons x xs
+      then case partition ((= EQ) * ord.compare x) xs of {
+        if Pair ls gs then qsortList ls ++ Cons x (qsortList gs);
+      }
 
-end
+    }
 
+  }
+
+}

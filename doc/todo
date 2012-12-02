@@ -2,18 +2,18 @@
 TO-DO
 =====
 
-Think about nicer function definition syntax, too.
+Add simpler syntax for:
+  * Value bindings that bind functions
+  * Module bindings that bind records
+  * Sig bindings
 
-  If we try to just replace the word "val" with "fn" at the head of the decl,
-  we have a problem: the function could also be an argument to apply to the previous
-  expression.
+Fix this weird thing: in a case-function, in an else clause, you might want to bind
+the arguments to variables. But you can't. So you have to use an "if" with all plain
+variables, which just makes it less obvious what it really is. So, allow the else
+clause to have pattern bindings. (This can be useful even in normal cases, actually.)
 
-Bring back a nicer syntax for defining modules and sigs
-
-  And a nicer-yet syntax for modules and sigs which occupy whole files
-
-Make it possible to define an "otherwise" case in a function-case without having to
-write one underscore for each argument.
+Allow multiple "if" clauses to be stacked with a single result body, so long as all
+clauses bind the same set of variables with the same types (or compatible types).
 
 Add simpler syntax for the common cases of algebraic data types
 
@@ -41,4 +41,10 @@ Add syntax for declaring view types
   view function.
 
 Allow patterns in let bindings
+
+Find keywords that can be allowed as identifiers
+
+There is ambiguity in the "open" expression
+
+Write a pretty-printer back to real syntax
 
