@@ -2,6 +2,24 @@
 TO-DO
 =====
 
+Write the module interpreter / name resolver / precedence resolver
+
+Write a pretty-printer back to real syntax
+
+  Use intelligent line-breaking when faced with a long expression
+  * Prefer to break lines higher up in the AST, rather than at the latest possible
+    moment
+    * But do this in a generic way: send a stream of information to the "output"
+      which includes:
+        * Tokens to print, with rules for adding adjacent spaces
+        * Mandatory newlines
+        * Ident and dedent
+        * Syntactic descent and ascent
+          * Use these to find better places to break lines
+
+  Note: dealing with operators correctly requires knowing the precedence of each
+  operator reference, which requires the resolution phase to be implemented.
+
 Fix this weird thing: in a case-function, in an else clause, you might want to bind
 the arguments to variables. But you can't. So you have to use an "if" with all plain
 variables, which just makes it less obvious what it really is. So, allow the else
@@ -38,6 +56,4 @@ Allow patterns in let bindings
 Find keywords that can be allowed as identifiers
 
 There is ambiguity in the "open" expression
-
-Write a pretty-printer back to real syntax
 
