@@ -3,8 +3,6 @@ module Monad (CompileError(..), FM(), runFM) where
 
 import Control.Monad.Writer
 
-import Import
-
 data CompileError =
     EUnknown String
   deriving (Eq, Ord, Show)

@@ -26,8 +26,6 @@ Bring back a nicer syntax for defining modules and sigs
 Make it possible to define an "otherwise" case in a function-case without having to
 write one underscore for each argument.
 
-Turn on -Wall and -Werror!
-
 Add simpler syntax for the common cases of algebraic data types
 
 Add syntax for decision tables
@@ -47,8 +45,9 @@ definining functions across all implementations of that sig.
 Think about how to make sigs and modules as easy to use as typeclasses in the common
 case.
 
-Improve error messages in the parser
-
-Use a proper type for keywords rather than storing them in strings, since it can lead
-to errors when a keyword is referenced in the parser that the lexer doesn't produce.
+Add syntax for declaring view types
+  This is a data type combined with a function from some other type to that data type.
+  The view type cannot be directly pattern-matched - any pattern match using the view
+  type implicitly expects a value of the input type, which is then transformed with the
+  view function.
 

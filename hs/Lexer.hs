@@ -2,8 +2,6 @@
 module Lexer (tokenize) where
 
 import Text.Parsec
-import Text.Parsec.Char
-import Text.Parsec.Combinator
 import Text.Parsec.String
 
 import Common
@@ -26,7 +24,7 @@ file = do
   eof
   return . concat $ xs
 
-skippable = many $ comment <|> (space >> return ())
+skippable = optional . many1 $ comment <|> (space >> return ())
 
 tok = keywords <|> choice [ident, exprOp, litInt, litFloat, litString, litChar]
 
@@ -52,7 +50,7 @@ litFloat :: Parser Token
 litFloat = do
   (intPart, fracPart) <- withIntPart <|> withoutIntPart
   exp <- optionMaybe $ do
-    oneOf "eE"
+    _ <- oneOf "eE"
     sign <- optionMaybe $ oneOf "+-"
     let signVal = if sign == Just '-' then -1 else 1
     digs <- many1 digit
@@ -63,19 +61,19 @@ litFloat = do
   where
     withIntPart = do
       intPart <- many1 digit
-      char '.'
+      _ <- char '.'
       fracPart <- many digit
       return (intPart, fracPart)
     withoutIntPart = do
-      char '.'
+      _ <- char '.'
       fracPart <- many1 digit
       return ("0", fracPart)
 
 -- TODO better comment syntax, with nestable block comments
 comment :: Parser ()
 comment = do
-  string "//"
-  many . noneOf $ "\n\r"
+  _ <- string "//"
+  _ <- many . noneOf $ "\n\r"
   optional . char $ '\r'
   (char '\n' >> return ()) <|> eof
 
@@ -89,12 +87,14 @@ charContent quote = (char '\\' >> escape) <|> normal
   where
     escape = foldr (<|>) (unicode <|> octal) escapeCodes
     unicode = do
-      char 'u' :: Parser Char
+      _ <- char 'u' :: Parser Char
       count 4 hexDigit >>= return . chr . read . ("0x" ++)
     octal = do
       a <- oneOf ['0' .. '3']
       [b, c] <- count 2 . oneOf $ ['0' .. '7']
-      return . chr $ (readDigit a * (8 ^ 2)) + (readDigit b * 8) + readDigit c
+      return
+        . chr
+        $ (readDigit a * 8 ^ (2 :: Integer)) + (readDigit b * 8) + readDigit c
     normal = noneOf [quote, '\\']
     readDigit = read . (: [])
 

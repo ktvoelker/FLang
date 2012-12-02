@@ -1,7 +1,6 @@
 
 module Main where
 
-import Common
 import Common.IO
 import Lexer
 import Parser

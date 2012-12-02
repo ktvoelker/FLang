@@ -2,11 +2,9 @@
 module Parser where
 
 import Text.Parsec hiding (parse)
-import Text.Parsec.Combinator
 
 import qualified Text.Parsec as P
 
-import Common
 import Syntax
 import Token
 import Lexer
@@ -369,6 +367,7 @@ patApp = do
   ns <- bindName `sepEndBy1` kw "."
   ps <- many pat
   return $ case ns of
+    [] -> error "Impossible!"
     [n] | null ps && namespace n == NsValues -> PatBind n
     (n : ns) -> PatApp (foldl Member (Ref n) ns) ps
 
