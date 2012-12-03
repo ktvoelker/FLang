@@ -6,6 +6,7 @@ module Import
   , module Control.Monad.State
   , module Data.Char
   , module Data.Either
+  , module Data.Lens
   , module Data.List
   , module Data.Map
   , module Data.Maybe
@@ -19,6 +20,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char
 import Data.Either
+import Data.Lens
 import Data.List
 import Data.Map (Map())
 import Data.Maybe
