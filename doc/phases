@@ -2,15 +2,72 @@
 Phases of Compilation
 =====================
 
- 1. Lexical analysis
- 2. Syntactic analysis
- 3. Scope linker (link local scopes to their parents)
- 
- 4. Name resolution (add a pointer from each ref to its binding) (also make sure refs don't violate sigs)
- 5. Module application (generate records for all module applications and update all module expressions to be refs)
- 6. Data type-checking (make sure all data declarations are valid)
- 7. Value type-checking (make sure all value declarations have a correct type signature; infer missing ones)
- 8. Module sig-checking (make sure all modules obey their declared sigs)
- 9. Simplification
+1. Lexing
+
+2. Parsing
+
+3. Sig extraction - build Map ModName Sig, replacing all sig references with ModNames
+
+4. Sig checking - make sure that sigs don't have or contain duplicate names
+
+5. Module type-checking
+
+  a. Check the sigs of the parameters at each module application
+
+  b. Check that module records don't have duplicate names
+
+  c. Check that module records declare the names required by their sigs, in the right
+     namespaces
+
+6. Value type-checking
+
+  a. Check that each value binding has its stated type, and infer missing types if
+     possible
+
+7. Materialization
+
+  a. Make a flat table of all value bindings in modules (including the implicit ones
+     from data declarations), replacing the definitions in the source with pointers
+     into this table
+
+     Note: value bindings in modules must either be functions or constant expressions.
+
+     Note: add an extra outer parameter to each binding for the dictionary.
+
+  b. Find all module expressions, convert each to normal form, and make a dictionary
+     for each unique normal-form expression in a table, replacing the module expression
+     with a pointer into this table. (Note that this process must be applied inside
+     the value table as well.)
+
+  c. Convert Member expressions where the LHS is a ModName into an App of the module
+     dictionary to the member's newly-globalized self
+
+  d. Generate code for all the value bindings and module dictionaries.
+
+The Old List:
+
+1. Lexical analysis
+
+2. Syntactic analysis
+
+3. Scope linker (link local scopes to their parents)
+
+4. Name resolution (add a pointer from each ref to its binding) (also make
+sure refs don't violate sigs)
+
+5. Module application (generate records for all module applications and update
+all module expressions to be refs)
+
+6. Data type-checking (make sure all data declarations are valid)
+
+7. Value type-checking (make sure all value declarations have a correct type
+signature; infer missing ones)
+
+8. Module sig-checking (make sure all modules obey their declared sigs)
+
+9. Simplification
+
 10. Optimization
+
 11. Code generation
+

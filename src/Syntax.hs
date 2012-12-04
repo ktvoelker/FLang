@@ -11,10 +11,10 @@ data ModName =
 newtype BindName = BindName String
   deriving (Eq, Ord, Show)
 
-data Namespace = NsTypes | NsValues
+data Namespace = NsTys | NsValues
   deriving (Eq, Ord, Show)
 
-namespace (BindName (x : _)) | isUpper x = NsTypes
+namespace (BindName (x : _)) | isUpper x = NsTys
 namespace _ = NsValues
 
 data OpenQual = OpenExcept [BindName] | OpenOnly [BindName]
@@ -29,14 +29,24 @@ data InfixAssoc = InfixLeft | InfixRight | InfixNone
 data Binder = Binder BindName (Maybe TyExpr)
   deriving (Eq, Ord, Show)
 
+data Binding e = Binding Binder e
+  deriving (Eq, Ord, Show)
+
+type ModBinding = Binding ModExpr
+
+type SigBinding = Binding [SigDecl]
+
+type ValBinding = Binding ValExpr
+
+type TyBinding = Binding TyExpr
+
 data ModDecl =
-    BindModule Binder ModExpr
-  | BindSig Binder [SigDecl]
-  | BindVal Binder ValExpr
-  | BindType Binder TyExpr
+    BindMod ModBinding
+  | BindSig SigBinding
+  | BindVal ValBinding
+  | BindTy TyBinding
   | Open ValExpr (Maybe OpenQual)
   | Data DataMode BindName (Maybe TyExpr) TyExpr [ModDecl]
-  | Type Binder TyExpr
   | Infix InfixAssoc Integer [BindName]
   deriving (Eq, Ord, Show)
 
@@ -48,8 +58,8 @@ data TyCompOp = OpSubTy | OpSuperTy | OpEqualTy
 
 data SigDecl =
     SigVal BindName TyExpr
-  | SigType BindName (Maybe TyBound)
-  | SigModule BindName TyExpr
+  | SigTy BindName (Maybe TyBound)
+  | SigMod BindName TyExpr
   deriving (Eq, Ord, Show)
 
 data ValDecl = BindLocalVal Binder ValExpr

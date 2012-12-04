@@ -40,7 +40,7 @@ kw xs = tok ("'" ++ xs ++ "'") $ \t -> case t of
 genModHeader word = do
   kw word
   n <- bindName
-  t <- optionMaybe hasType
+  t <- optionMaybe hasTy
   return $ Binder n t
 
 modHeader = genModHeader "module"
@@ -82,9 +82,9 @@ dataMode =
     , ("closed", DataClosed)
     ]
 
-parentType = kw "<:" >> ty
+parentTy = kw "<:" >> ty
 
-hasType = kw ":" >> ty
+hasTy = kw ":" >> ty
 
 valParam =
   fmap (flip Binder Nothing) bindName
@@ -92,7 +92,7 @@ valParam =
   do
     kw "("
     n <- bindName
-    t <- optionMaybe hasType
+    t <- optionMaybe hasTy
     kw ")"
     return $ Binder n t
 
@@ -124,22 +124,22 @@ modDecl =
   do
     kw "val"
     n <- bindName
-    t <- optionMaybe hasType
+    t <- optionMaybe hasTy
     kw "is"
-    fmap (BindVal $ Binder n t) valPrimEnd
+    fmap (BindVal . (Binding $ Binder n t)) valPrimEnd
   <|>
   do
     kw "data"
-    dataDecl $ optionMaybe parentType
+    dataDecl $ optionMaybe parentTy
   <|>
   do
     kw "type"
     n <- bindName
-    lhs <- optionMaybe hasType
+    lhs <- optionMaybe hasTy
     kw "is"
     rhs <- ty
     kw ";"
-    return $ BindType (Binder n lhs) rhs
+    return $ BindTy (Binding (Binder n lhs) rhs)
   <|>
   do
     kw "infix"
@@ -155,13 +155,13 @@ fileDecl =
   do
     h <- modHeader
     kw "is"
-    fmap (BindModule h) modExpr
+    fmap (BindMod . Binding h) modExpr
   <|>
   do
     h <- sigHeader
     kw "is"
     kw "rec"
-    fmap (BindSig h) . braces . semi $ sigDecl
+    fmap (BindSig . Binding h) . braces . semi $ sigDecl
 
 ident = tok "identifier" $ \t -> case t of
   TId xs -> Just xs
@@ -192,20 +192,20 @@ sigDecl =
   do
     kw "val"
     n <- bindName
-    t <- hasType
+    t <- hasTy
     return $ SigVal n t
   <|>
   do
     kw "type"
     n <- bindName
     t <- optionMaybe tyRel
-    return $ SigType n t
+    return $ SigTy n t
   <|>
   do
     kw "module"
     n <- bindName
-    t <- hasType
-    return $ SigModule n t
+    t <- hasTy
+    return $ SigMod n t
 
 valExpr = expr "expression" valOp valPrim
 
@@ -242,7 +242,7 @@ exprMember prim = do
 
 localBind = do
   n <- bindName
-  t <- optionMaybe hasType
+  t <- optionMaybe hasTy
   kw "is"
   e <- valExpr
   return $ BindLocalVal (Binder n t) e
@@ -391,7 +391,7 @@ tyPrim =
 
 tyRec = fmap Record $ between (kw "rec") (kw "end") $ semi $ do
   n <- bindName
-  t <- hasType
+  t <- hasTy
   return $ FieldDecl n t
 
 tyConstr = do

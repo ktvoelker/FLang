@@ -10,9 +10,7 @@ type ResolveM = ReaderT Env (StateT Global FM)
 resolve :: [ModDecl] -> FM Global
 resolve = execStateT (runReaderT f emptyEnv) . emptyGlobal
   where
-    f = do
-      r <- access gRoot >>= mapM resolveModDecl
-      gRoot ~= r
+    f = gRoot %>>= mapM resolveModDecl
 
 resolveModDecl :: ModDecl -> ResolveM ModDecl
 resolveModDecl = undefined

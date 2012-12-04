@@ -11,21 +11,20 @@ import Syntax
 data Global =
   Global
   { _gRoot :: [ModDecl]
-  , _gMods :: Map ModName [ModDecl]
-  , _gSigs :: Map ModName [SigDecl]
+  , _gSigs :: Map ModName SigBinding
   } deriving (Eq, Ord, Show)
 
-emptyGlobal root = Global root Map.empty Map.empty
+emptyGlobal root = Global root Map.empty
 
 data Env =
   Env
-  { _eMods :: Map BindName ModExpr
-  , _eSigs :: Map BindName SigExpr
+  { _ePath :: Maybe [BindName]
+  , _eMods :: Map BindName ModExpr
   , _eTys  :: Map BindName TyExpr
   , _eVals :: Map BindName ValExpr
   } deriving (Eq, Ord, Show)
 
-emptyEnv = Env Map.empty Map.empty Map.empty Map.empty
+emptyEnv = Env (Just []) Map.empty Map.empty Map.empty
 
 makeLenses [''Global, ''Env]
 
