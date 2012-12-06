@@ -59,3 +59,8 @@ There is ambiguity in the "open" expression
 
 Figure out how to do lenses nicely
 
+Figure out how to allow sigs inside parameterized modules
+
+Add syntax to allow long strings to be written as multiple adjacent strings which
+are concatenated during parsing
+

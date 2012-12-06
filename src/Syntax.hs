@@ -34,7 +34,7 @@ data Binding e = Binding Binder e
 
 type ModBinding = Binding ModExpr
 
-type SigBinding = Binding [SigDecl]
+type SigBinding = Binding SigExpr
 
 type ValBinding = Binding ValExpr
 
@@ -45,7 +45,6 @@ data ModDecl =
   | BindSig SigBinding
   | BindVal ValBinding
   | BindTy TyBinding
-  | Open ValExpr (Maybe OpenQual)
   | Data DataMode BindName (Maybe TyExpr) TyExpr [ModDecl]
   | Infix InfixAssoc Integer [BindName]
   deriving (Eq, Ord, Show)
@@ -117,11 +116,11 @@ data Pat =
 data TyPrim = TyFn | TyAuto | TyEmpty
   deriving (Eq, Ord, Show)
 
-type ValExpr = Expr ValDecl ValPrim
-
-type TyExpr = Expr TyDecl TyPrim
-
 type ModExpr = Expr ModDecl ()
 
 type SigExpr = Expr SigDecl ()
+
+type ValExpr = Expr ValDecl ValPrim
+
+type TyExpr = Expr TyDecl TyPrim
 

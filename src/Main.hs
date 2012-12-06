@@ -5,7 +5,7 @@ import Common
 import Common.IO
 import Lexer
 import Parser
-import Resolver
+import Renamer
 
 import Text.Show.Pretty
 
@@ -20,12 +20,12 @@ parsePhase = lexPhase' >=> mapM (uncurry parse)
   where
     lexPhase' xs = fmap (zip $ map fst xs) . lexPhase $ xs
 
-resolvePhase = parsePhase >=> resolve
+renamePhase = parsePhase >=> rename
 
 phases =
   [ ("lex", runPhase lexPhase)
   , ("parse", runPhase parsePhase)
-  , ("resolve", runPhase resolvePhase)
+  , ("rename", runPhase renamePhase)
   ]
 
 getInput xs = fmap (xs,) $ case xs of

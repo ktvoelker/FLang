@@ -1,4 +1,44 @@
 
+NEW NEW PHASES
+==============
+
+1. Lexing
+
+2. Parsing
+
+3. Module ordering
+
+  Descend over the modules, annotating each node with a set of integers (the things
+  referenced by that node and its descendants) and another set of integers (the things
+  declared by that node and its descendants).
+
+  Use a work queue of nodes to which the algorithm has come near but hasn't yet
+  processed. When processing an item from the work queue, remove it first.
+
+  In general, when descending, allocate new integers to any bindings made at the
+  starting node, and then process the child nodes.
+
+  When descending from a record node, allocate new integers for all the immediate
+  children of the record. Put all those children into the work queue, then proceed.
+
+  When a Ref can't be dereferenced, that's an error.
+
+  When some step of a Member can't be dereferenced, see if the dereferenceable prefix
+  of the Member is in the work queue. If so, process that entry from the work queue,
+  and then proceed. If not, it is a circularity error.
+
+  In the end, if there were no errors, then every node is annotated with certain sets
+  that define a DAG among the nodes.
+
+  SO...this algorithm seems like it should work, but it doesn't make much sense without
+  mutable references.
+
+4. Module interpretation
+
+  Descend over the modules as an interpreter that checks types at runtime.
+
+
+
 Phases of Compilation
 =====================
 
@@ -6,9 +46,39 @@ Phases of Compilation
 
 2. Parsing
 
-3. Sig extraction - build Map ModName Sig, replacing all sig references with ModNames
+2.5 FIGURE THIS OUT
 
-4. Sig checking - make sure that sigs don't have or contain duplicate names
+  The idea that we could simply extract all sigs while giving almost no attention to
+  modules has turned out to be wrong. Consider these questions:
+
+  a. Can a sig exist inside a parameterized module? (We can say no for now.)
+
+  b. If two modules are aliased, and they contain a sig, what is the sig's ModName?
+
+  If we say "no" to (a), then we can solve this problem: instead of an initial
+  sig extraction phase, we need a "global extraction" phase. The purpose of
+  this phase is to move all globally accessible things (or at least all such
+  mods and sigs) into global tables mapped by generated names, and to have a
+  second table mapping user-level names to generated names.
+
+  All references to things which exist in the global tables should be replaced by
+  ModNames during this phase. The ModNames will refer to the globals directly, by
+  the generated name.
+
+  What if we said "yes" to (a)?
+
+  An example might provide some clarification.
+
+3. Sig extraction - build a Map ModName Sig
+
+  a. Check for sigs with duplicate names
+
+  b. Check that parameterized modules don't contain sigs
+
+4. Sig validation - make sure that sigs don't contain duplicate names
+
+5. Sig dereferencing - make sure that all references that should be to sigs are to sigs,
+   and update them to use ModNames
 
 5. Module type-checking
 

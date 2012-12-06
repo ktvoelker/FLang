@@ -63,18 +63,6 @@ modExpr =
 
 modPrim = ref <|> parens modExpr
 
-openMode =
-  choice
-  . map (\(w, e) -> kw w >> return e)
-  $ [ ("except", OpenExcept)
-    , ("only", OpenOnly)
-    ]
-
-openQual = do
-  mode <- openMode
-  bs <- many1 bindName
-  return $ mode bs
-
 dataMode =
   choice
   . map (\(w, e) -> kw w >> return e)
@@ -113,13 +101,6 @@ dataDecl par = do
 
 modDecl =
   fileDecl
-  <|>
-  do
-    kw "open"
-    e <- valExpr
-    q <- optionMaybe openQual
-    kw ";"
-    return $ Open e q
   <|>
   do
     kw "val"
@@ -161,7 +142,7 @@ fileDecl =
     h <- sigHeader
     kw "is"
     kw "rec"
-    fmap (BindSig . Binding h) . braces . semi $ sigDecl
+    fmap (BindSig . Binding h . Record) . braces . semi $ sigDecl
 
 ident = tok "identifier" $ \t -> case t of
   TId xs -> Just xs

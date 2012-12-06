@@ -39,4 +39,5 @@ Executable fc
     FunctionalDependencies
     ScopedTypeVariables
     FlexibleInstances
+    FlexibleContexts
 
