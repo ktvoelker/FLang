@@ -8,7 +8,7 @@ data ModName =
   | GenModName Integer String
   deriving (Eq, Ord, Show)
 
-newtype BindName = BindName String
+data BindName = BindName String | UniqueName Integer
   deriving (Eq, Ord, Show)
 
 data Namespace = NsTys | NsValues
@@ -26,8 +26,11 @@ data DataMode = DataOpen | DataClosed
 data InfixAssoc = InfixLeft | InfixRight | InfixNone
   deriving (Eq, Ord, Show)
 
-data Binder = Binder BindName (Maybe TyExpr)
-  deriving (Eq, Ord, Show)
+data Binder =
+  Binder
+  { binderName :: BindName
+  , binderTy   :: Maybe TyExpr
+  } deriving (Eq, Ord, Show)
 
 data Binding e = Binding Binder e
   deriving (Eq, Ord, Show)
@@ -74,7 +77,7 @@ data Expr d e =
   | App (Expr d e) [Expr d e]
   | Record [d]
   | Ref BindName
-  | ModRef ModName
+  | UniqueRef Integer
   | Member (Expr d e) BindName
   | OpChain (Maybe (Expr d e)) [(Expr d e, Expr d e)]
   | Let [d] (Expr d e)

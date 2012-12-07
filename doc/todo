@@ -4,6 +4,8 @@ TO-DO
 
 Write the module interpreter / name resolver / precedence resolver
 
+Add a nice Lens function like "access" but for Readers
+
 Write a pretty-printer back to real syntax
 
   Use intelligent line-breaking when faced with a long expression
