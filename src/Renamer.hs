@@ -80,20 +80,36 @@ withNewNames inner ns = do
       . maybe (return Nothing) (fmap Just . renameExpr)
       $ ty
 
+makeRecEnv :: [ModDecl] -> M ([ModDecl], Env)
+makeRecEnv ds = do
+  env   <- ask
+  state <- get
+  (ds', (env', state')) <- lift2 . runStateT (mapM renameModDeclLHS ds) $ (env, state)
+  put state'
+  return (ds', env')
+
 instance RenameExpr ModDecl () where
   renameExpr (Lam bs e) = uncurry Lam <$> (renameExpr e `withNewNames` bs)
   renameExpr (App f as) = App <$> renameExpr f <*> mapM renameExpr as
   renameExpr (Record ds) = do
-    env   <- ask
-    state <- get
-    (ds', (env', state')) <-
-      lift
-      . lift
-      . runStateT (mapM renameModDeclLHS ds)
-      $ (env, state)
-    put state'
+    (ds', env') <- makeRecEnv ds
     Record <$> local (const env') (mapM renameModDeclRHS ds')
-  renameExpr _ = undefined
+  renameExpr (Ref n) = Ref <$> renameName n
+  renameExpr e@(UniqueRef _) = return e
+  renameExpr (Member e n) = Member <$> renameExpr e <*> pure n
+  renameExpr (OpChain e os) = OpChain <$> mapM renameExpr e <*> mapM f os
+    where
+      f (a, b) = (,) <$> renameExpr a <*> renameExpr b
+  renameExpr (Let ds e) = do
+    (ds', env') <- makeRecEnv ds
+    (ds'', e')  <-
+      local (const env')
+      $ (,) <$> mapM renameModDeclRHS ds' <*> renameExpr e
+    return $ Let ds'' e'
+  renameExpr p@(Prim ()) = do
+    lift2 . report $ EInternal "Unexpected Prim found in ModExpr"
+    return p
+  renameExpr ToDo = return ToDo
 
 instance RenameExpr SigDecl () where
   renameExpr = undefined
