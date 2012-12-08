@@ -66,7 +66,7 @@ data SigDecl =
   | SigMod BindName TyExpr
   deriving (Eq, Ord, Show)
 
-data ValDecl = BindLocalVal Binder ValExpr
+data ValDecl = BindLocalVal ValBinding
   deriving (Eq, Ord, Show)
 
 data TyDecl =

@@ -226,7 +226,7 @@ localBind = do
   t <- optionMaybe hasTy
   kw "is"
   e <- valExpr
-  return $ BindLocalVal (Binder n t) e
+  return . BindLocalVal $ Binding (Binder n t) e
 
 semi = (`sepEndBy1` kw ";")
 
