@@ -45,27 +45,21 @@ renameBindingLHS (Binding (Binder n t) e) = do
   return $ Binding (Binder (UniqueName n') t) e
 
 renameModDeclRHS :: ModDecl -> M ModDecl
-renameModDeclRHS = undefined
-
-{-
-renameModDecl :: ModDecl -> M ModDecl
-renameModDecl (BindMod b) = fmap BindMod . renameBinding $ b
-renameModDecl (BindSig b) = fmap BindSig . renameBinding $ b
-renameModDecl (BindVal b) = fmap BindVal . renameBinding $ b
-renameModDecl (BindTy b) = fmap BindTy . renameBinding $ b
-renameModDecl (Data m n p t ds) = do
+renameModDeclRHS (BindMod b) = fmap BindMod . renameBindingRHS $ b
+renameModDeclRHS (BindSig b) = fmap BindSig . renameBindingRHS $ b
+renameModDeclRHS (BindVal b) = fmap BindVal . renameBindingRHS $ b
+renameModDeclRHS (BindTy b) = fmap BindTy . renameBindingRHS $ b
+renameModDeclRHS (Data m n p t ds) = do
   p'  <- maybe (return Nothing) (fmap Just . renameExpr) p
   t'  <- renameExpr t
-  ds' <- mapM renameModDecl ds
+  ds' <- mapM renameModDeclRHS ds
   return $ Data m n p' t' ds'
-renameModDecl (Infix a p ns) = fmap (Infix a p) . mapM renameName $ ns
--}
+renameModDeclRHS (Infix a p ns) = fmap (Infix a p) . mapM renameName $ ns
 
 renameBindingRHS :: (RenameExpr d e) => Binding (Expr d e) -> M (Binding (Expr d e))
 renameBindingRHS (Binding (Binder n t) e) = do
-  n' <- renameName n
   t' <- maybe (return Nothing) (fmap Just . renameExpr) t
-  fmap (Binding $ Binder n' t') . renameExpr $ e
+  fmap (Binding $ Binder n t') . renameExpr $ e
 
 renameName :: BindName -> M BindName
 renameName n@(BindName _) = asks _eLocals >>= return . maybe n UniqueName . Map.lookup n
