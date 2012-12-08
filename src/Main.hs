@@ -6,6 +6,7 @@ import Common.IO
 import Lexer
 import Parser
 import Renamer
+import Syntax
 
 import Text.Show.Pretty
 
@@ -20,7 +21,7 @@ parsePhase = lexPhase' >=> mapM (uncurry parse)
   where
     lexPhase' xs = fmap (zip $ map fst xs) . lexPhase $ xs
 
-renamePhase = parsePhase >=> rename
+renamePhase = parsePhase >=> rename . Record
 
 phases =
   [ ("lex", runPhase lexPhase)

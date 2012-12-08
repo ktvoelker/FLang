@@ -1,6 +1,8 @@
 
 module Token where
 
+import Common
+
 data Token =
     TKeyword String
   | TId String

@@ -10,7 +10,7 @@ import Syntax
 
 data Global =
   Global
-  { _gRoot       :: [ModDecl]
+  { _gRoot       :: Program
   , _gNextUnique :: Integer
   } deriving (Eq, Ord, Show)
 

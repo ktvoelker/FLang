@@ -3,6 +3,8 @@ module Syntax where
 
 import Common
 
+type Program = ModExpr
+
 data ModName =
     UserModName [BindName]
   | GenModName Integer String

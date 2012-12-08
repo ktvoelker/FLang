@@ -4,6 +4,7 @@ module Monad (CompileError(..), fatal, report, FM(), runFM) where
 import Control.Monad.Writer
 import Text.Parsec (ParseError())
 
+import Import
 import Util
 
 data CompileError =
