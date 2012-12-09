@@ -2,7 +2,11 @@
 TO-DO
 =====
 
-Write the module interpreter / name resolver / precedence resolver
+Finish the renamer
+
+Write the RecordSorter phase
+
+  Use MonadAccum
 
 Add a nice Lens function like "access" but for Readers
 
