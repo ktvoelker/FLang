@@ -11,6 +11,14 @@ type M = ReaderT Env (StateT Global FM)
 
 type MRec = StateT (Env, Global) FM
 
+makeEnv :: MRec a -> M (a, Env)
+makeEnv m = do
+  env   <- ask
+  state <- get
+  (x, (env', state')) <- lift2 . runStateT m $ (env, state)
+  put state'
+  return (x, env')
+
 rename :: Program -> FM Global
 rename = execStateT (runReaderT f emptyEnv) . emptyGlobal
   where
@@ -106,12 +114,7 @@ withNewNames inner ns = do
       $ ty
 
 makeRecEnv :: (RenameDecl d) => [d] -> M ([d], Env)
-makeRecEnv ds = do
-  env   <- ask
-  state <- get
-  (ds', (env', state')) <- lift2 . runStateT (mapM renameLHS ds) $ (env, state)
-  put state'
-  return (ds', env')
+makeRecEnv = makeEnv . mapM renameLHS
 
 renameExpr :: (RenameDecl d, RenamePrim e) => Expr d e -> M (Expr d e)
 renameExpr (Lam bs e) = uncurry Lam <$> (renameExpr e `withNewNames` bs)
@@ -148,26 +151,31 @@ instance RenamePrim ValPrim where
 instance RenamePrim TyPrim where
   renamePrim = return
 
--- WRONG
--- We have to allocate new names for pattern bindings and include them in a local
--- environment on the RHS of each pattern. Same for FnClause.
-renameCaseClause (CaseClause p v) = CaseClause <$> renamePat p <*> renameExpr v
+renameCaseClause (CaseClause p v) = do
+  (p', env') <- renamePat p
+  CaseClause p' <$> local (const env') (renameExpr v)
 
--- WRONG
-renameFnClause (FnClause ps v) = FnClause <$> mapM renamePat ps <*> renameExpr v
+renameFnClause (FnClause ps v) = do
+  (ps', env') <- renamePats ps
+  FnClause ps' <$> local (const env') (renameExpr v)
 
--- WRONG
--- Names in patterns are always bindings, not uses.
--- Use MRec for renamePat so that we can accumulate all the bindings in a pattern
--- statefully.
-renamePat (PatBind n) = PatBind <$> renameName n
-renamePat (PatApp e ps) = PatApp <$> renameExpr e <*> mapM renamePat ps
-renamePat lit = return lit
+renamePat = renamePatExprs >=> makeEnv . renamePatBinds
+
+renamePats = mapM renamePatExprs >=> makeEnv . mapM renamePatBinds
+
+renamePatExprs (PatApp e ps) = PatApp <$> renameExpr e <*> mapM renamePatExprs ps
+renamePatExprs p = return p
+
+renamePatBinds (PatBind n) = PatBind <$> renameNameLHS n
+renamePatBinds (PatApp e ps) = PatApp e <$> mapM renamePatBinds ps
+renamePatBinds lit = return lit
 
 renameDo [] = return []
--- TODO
--- Once renamePat has been fixed, this will be easier.
-renameDo (DoLet ds : xs) = undefined
-renameDo (DoBind p v : xs) = undefined
+renameDo (DoLet ds : xs) = do
+  (ds', env') <- makeRecEnv ds
+  (DoLet ds' :) <$> local (const env') (renameDo xs)
+renameDo (DoBind p v : xs) = do
+  (p', env') <- renamePat p
+  (:) <$> (DoBind p' <$> renameExpr v) <*> local (const env') (renameDo xs)
 renameDo (DoExpr e : xs) = (:) <$> (DoExpr <$> renameExpr e) <*> renameDo xs
 
