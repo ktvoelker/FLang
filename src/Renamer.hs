@@ -140,8 +140,34 @@ instance RenamePrim () where
     return ()
 
 instance RenamePrim ValPrim where
-  renamePrim _ = undefined
+  renamePrim (LamCase xs) = LamCase <$> mapM renameFnClause xs
+  renamePrim (Case e xs) = Case <$> renameExpr e <*> mapM renameCaseClause xs
+  renamePrim (Do xs) = Do <$> renameDo xs
+  renamePrim lit = return lit
 
 instance RenamePrim TyPrim where
   renamePrim = return
+
+-- WRONG
+-- We have to allocate new names for pattern bindings and include them in a local
+-- environment on the RHS of each pattern. Same for FnClause.
+renameCaseClause (CaseClause p v) = CaseClause <$> renamePat p <*> renameExpr v
+
+-- WRONG
+renameFnClause (FnClause ps v) = FnClause <$> mapM renamePat ps <*> renameExpr v
+
+-- WRONG
+-- Names in patterns are always bindings, not uses.
+-- Use MRec for renamePat so that we can accumulate all the bindings in a pattern
+-- statefully.
+renamePat (PatBind n) = PatBind <$> renameName n
+renamePat (PatApp e ps) = PatApp <$> renameExpr e <*> mapM renamePat ps
+renamePat lit = return lit
+
+renameDo [] = return []
+-- TODO
+-- Once renamePat has been fixed, this will be easier.
+renameDo (DoLet ds : xs) = undefined
+renameDo (DoBind p v : xs) = undefined
+renameDo (DoExpr e : xs) = (:) <$> (DoExpr <$> renameExpr e) <*> renameDo xs
 
