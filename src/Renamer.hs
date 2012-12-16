@@ -42,9 +42,8 @@ instance RenameDecl ModDecl where
   renameLHS (BindTy b) = fmap BindTy . renameBindingLHS $ b
   renameLHS (Data m n p t ds) = do
     ds' <- mapM renameLHS ds
-    n'  <- focus sndLens allocUnique
-    _   <- eLocals . fstLens %= Map.insert n n'
-    return $ Data m (UniqueName n') p t ds'
+    n'  <- renameNameLHS n
+    return $ Data m n' p t ds'
   renameLHS i@(Infix _ _ _) = return i
   -- RHS
   renameRHS (BindMod b) = fmap BindMod . renameBindingRHS $ b
@@ -77,10 +76,11 @@ instance RenameDecl TyDecl where
   renameRHS (Constraint a o b) = Constraint <$> renameExpr a <*> pure o <*> renameExpr b
 
 renameNameLHS :: BindName -> MRec BindName
-renameNameLHS n = do
+renameNameLHS n@(UniqueName _ _) = return n
+renameNameLHS n@(BindName xs) = do
   n' <- focus sndLens allocUnique
   _  <- eLocals . fstLens %= Map.insert n n'
-  return $ UniqueName n'
+  return $ UniqueName n' xs
 
 renameBindingLHS
   :: (RenameDecl d, RenamePrim e) => Binding (Expr d e) -> MRec (Binding (Expr d e))
@@ -95,29 +95,26 @@ renameBindingRHS (Binding (Binder n t) e) = do
   fmap (Binding $ Binder n t') . renameExpr $ e
 
 renameName :: BindName -> M BindName
-renameName n@(BindName _) = asks _eLocals >>= return . maybe n UniqueName . Map.lookup n
-renameName n@(UniqueName _) = return n
+renameName n@(BindName xs) =
+  asks _eLocals >>= return . maybe n (flip UniqueName xs) . Map.lookup n
+renameName n@(UniqueName _ _) = return n
 
-withNewNames :: M a -> [Binder] -> M ([Binder], a)
-withNewNames inner ns = do
-  us  <- mapM (alloc . binderName) ns
-  let env = Map.fromList $ zip (map binderName ns) us
-  ret <- local (eLocals `modL` Map.union env) inner
-  ns' <- zipWithM replace ns (map UniqueName us)
-  return (ns', ret)
-  where
-    alloc (BindName _)   = allocUnique
-    alloc (UniqueName n) = return n
-    replace (Binder _ ty) name =
-      fmap (Binder name)
-      . maybe (return Nothing) (fmap Just . renameExpr)
-      $ ty
+renameBinders :: [Binder] -> M ([Binder], Env)
+renameBinders = mapM renameBinderTy >=> makeEnv . mapM renameBinderName
+
+renameBinderTy :: Binder -> M Binder
+renameBinderTy (Binder name ty) = Binder name <$> mapM renameExpr ty
+
+renameBinderName :: Binder -> MRec Binder
+renameBinderName (Binder name ty) = Binder <$> renameNameLHS name <*> pure ty
 
 makeRecEnv :: (RenameDecl d) => [d] -> M ([d], Env)
 makeRecEnv = makeEnv . mapM renameLHS
 
 renameExpr :: (RenameDecl d, RenamePrim e) => Expr d e -> M (Expr d e)
-renameExpr (Lam bs e) = uncurry Lam <$> (renameExpr e `withNewNames` bs)
+renameExpr (Lam bs e) = do
+  (bs', env') <- renameBinders bs
+  Lam bs' <$> local (const env') (renameExpr e)
 renameExpr (App f as) = App <$> renameExpr f <*> mapM renameExpr as
 renameExpr (Record ds) = do
   (ds', env') <- makeRecEnv ds
