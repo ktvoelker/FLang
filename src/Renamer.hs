@@ -153,6 +153,7 @@ makeRecEnv = makeEnv . mapM renameLHS
 renameExpr :: (RenameDecl d, RenamePrim e) => Expr d e -> M (Expr d e)
 renameExpr (Lam bs e) = do
   (bs', env') <- renameBinders bs
+  mapM_ insertBindName . map binderName $ bs'
   Lam bs' <$> local (const env') (renameExpr e)
 renameExpr (App f as) = App <$> renameExpr f <*> mapM renameExpr as
 renameExpr (Record ds) = do
