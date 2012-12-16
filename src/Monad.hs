@@ -12,6 +12,7 @@ data CompileError =
   | ELexer ParseError
   | EParser ParseError
   | EInternal String
+  | EUnbound String
   deriving (Show)
 
 newtype FM a = FM { getFM :: Writer [CompileError] (Maybe a) }

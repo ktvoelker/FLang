@@ -240,33 +240,30 @@ exprLam = kw "fn" >> (lamCase <|> lamPlain)
        - an expression rather than a block of clauses.
        --}
       try $ kw "{"
-      e <-
-        fmap (Prim . LamCase)
-        . many1
-        $ genCaseClause FnClause [PatIgnore] (many1 pat)
+      e <- Prim . LamCase <$> many1 (genCaseClause $ PatParams <$> many1 pat)
       kw "}"
       return e
     lamPlain = do
       ps <- many valParam
       fmap (Lam ps) valPrimEnd
 
-genCaseClause :: (a -> ValExpr -> b) -> a -> Parser a -> Parser b
-genCaseClause con ignore pat =
+genCaseClause :: Parser Pat -> Parser CaseClause
+genCaseClause pat =
   do
     kw "if"
     p <- pat
     kw "then"
-    fmap (con p) valPrimEnd
+    CaseClause p <$> valPrimEnd
   <|>
   do
     kw "else"
-    fmap (con ignore) valPrimEnd
+    CaseClause PatIgnore <$> valPrimEnd
 
 exprCase = fmap Prim $ do
   kw "case"
   s <- valExpr
   kw "of"
-  cs <- braces . many1 $ genCaseClause CaseClause PatIgnore patApp
+  cs <- braces . many1 $ genCaseClause patApp
   return $ Case s cs
 
 exprRec = fmap Record $ kw "rec" >> braces localBinds

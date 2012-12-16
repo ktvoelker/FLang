@@ -37,5 +37,5 @@ emptyBR = BR Set.empty Set.empty
 accumBR :: BR -> BR -> BR
 accumBR (BR b1 r1) (BR b2 r2) = BR (Set.union b1 b2) (Set.union r1 r2)
 
-makeLenses [''Global, ''Env]
+makeLenses [''Global, ''Env, ''BR]
 

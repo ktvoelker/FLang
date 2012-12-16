@@ -88,16 +88,13 @@ data Expr d e =
   deriving (Eq, Ord, Show)
 
 data ValPrim =
-    LamCase [FnClause]
+    LamCase [CaseClause]
   | Case ValExpr [CaseClause]
   | Do [DoElem]
   | EInt Integer
   | EFloat Rational
   | EString String
   | EChar Char
-  deriving (Eq, Ord, Show)
-
-data FnClause = FnClause [Pat] ValExpr
   deriving (Eq, Ord, Show)
 
 data CaseClause = CaseClause Pat ValExpr
@@ -110,7 +107,8 @@ data DoElem =
   deriving (Eq, Ord, Show)
 
 data Pat =
-    PatBind BindName
+    PatParams [Pat]
+  | PatBind BindName
   | PatApp ValExpr [Pat]
   | PatInt Integer
   | PatString String

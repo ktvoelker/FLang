@@ -2,11 +2,34 @@
 TO-DO
 =====
 
+Add location information to the syntax tree via an L type like in GHC
+
+  Also wrap errors in the L type
+
+  Use monad magic to make this all nicer to deal with:
+
+    Say we have an existing function T -> M a.
+
+    Now, we want to operate on an L T instead.
+
+    So, we have a combinator LF :: (b -> M a) -> (L b -> M a)
+
+    Here's how it works:
+
+      There's a current location in the environment.
+
+      LF takes the input, strips off the location, and feeds the real input to the
+      given function, but returns that function wrapped in a local environment where
+      the current location has been set to the extracted location.
+
+      Then, when reporting an error, the existing report function can simply pull the
+      current location out of the environment.
+
 Write the record sorting phase
 
-  Use MonadAccum
+  Check the output - report an EInternal with the contents of each set at the top
 
-  Just lump it into the existing Renamer phase
+  Go to the places where new rec-likes are introduced, and run branch and ordering
 
 Add a nice Lens function like "access" but for Readers
 
