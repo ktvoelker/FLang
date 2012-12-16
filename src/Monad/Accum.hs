@@ -1,4 +1,5 @@
 
+{-# LANGUAGE UndecidableInstances #-}
 module Monad.Accum where
 
 import Import
@@ -17,6 +18,16 @@ instance (Monad m) => Functor (AccumT s m) where
 
 instance MonadTrans (AccumT s) where
   lift = AccumT . lift
+
+instance (Monad m, MonadReader r m) => MonadReader r (AccumT a m) where
+  ask = lift ask
+  local f m = m >>= lift . local f . return
+  reader = lift . reader
+
+instance (Monad m, MonadState s m) => MonadState s (AccumT a m) where
+  get = lift get
+  put = lift . put
+  state = lift . state
 
 getAccum :: (Monad m) => AccumT s m s
 getAccum = AccumT $ access asAccum
@@ -43,6 +54,10 @@ runAccumT (AccumT m) s f =
     , _asAccum = s
     , _asFold  = f
     }
+
+evalAccumT m s f = runAccumT m s f >>= return . fst
+
+execAccumT m s f = runAccumT m s f >>= return . snd
 
 accum :: (Monad m) => s -> AccumT s m ()
 accum = void . runBranch . putAccum

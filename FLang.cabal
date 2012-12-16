@@ -41,4 +41,7 @@ Executable fc
     ScopedTypeVariables
     FlexibleInstances
     FlexibleContexts
+  other-extensions:
+    TemplateHaskell
+    UndecidableInstances
 

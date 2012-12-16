@@ -7,9 +7,15 @@ import Common
 import Syntax
 import Types
 
-type M = ReaderT Env (StateT Global FM)
+type M = ReaderT Env (StateT Global (AccumT BR FM))
 
-type MRec = StateT (Env, Global) FM
+rename :: Program -> FM Global
+rename p =
+  evalAccumT (execStateT (runReaderT f emptyEnv) $ emptyGlobal $ p) emptyBR accumBR
+  where
+    f = gRoot %>>= renameExpr
+
+type MRec = StateT (Env, Global) (AccumT BR FM)
 
 makeEnv :: MRec a -> M (a, Env)
 makeEnv m = do
@@ -18,11 +24,6 @@ makeEnv m = do
   (x, (env', state')) <- lift2 . runStateT m $ (env, state)
   put state'
   return (x, env')
-
-rename :: Program -> FM Global
-rename = execStateT (runReaderT f emptyEnv) . emptyGlobal
-  where
-    f = gRoot %>>= renameExpr
 
 allocUnique :: (MonadState Global m) => m Integer
 allocUnique = gNextUnique %= (+ 1)
@@ -136,7 +137,7 @@ renameExpr ToDo = return ToDo
 
 instance RenamePrim () where
   renamePrim () = do
-    lift2 . report $ EInternal "Unexpected Prim found in ModExpr or SigExpr"
+    lift3 . report $ EInternal "Unexpected Prim found in ModExpr or SigExpr"
     return ()
 
 instance RenamePrim ValPrim where

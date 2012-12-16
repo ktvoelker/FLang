@@ -15,6 +15,18 @@ mapSnd f (a, b) = (a, f b)
 lift2 :: (MonadTrans t, MonadTrans u, Monad m, Monad (u m)) => m a -> t (u m) a
 lift2 = lift . lift
 
+lift3
+  :: ( MonadTrans t
+     , MonadTrans u
+     , MonadTrans v
+     , Monad m
+     , Monad (u m)
+     , Monad (t (u m))
+     )
+  => m a
+  -> v (t (u m)) a
+lift3 = lift . lift . lift
+
 modifyM :: (MonadState s m) => (s -> m s) -> m ()
 modifyM = (>>= put) . (get >>=) 
 
