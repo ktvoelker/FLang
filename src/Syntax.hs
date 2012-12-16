@@ -10,7 +10,7 @@ data ModName =
   | GenModName Integer String
   deriving (Eq, Ord, Show)
 
-data BindName = BindName String | UniqueName Integer
+data BindName = BindName String | UniqueName Integer String
   deriving (Eq, Ord, Show)
 
 data Namespace = NsTys | NsValues

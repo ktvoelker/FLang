@@ -2,11 +2,11 @@
 TO-DO
 =====
 
-Test the renamer
-
-Write the RecordSorter phase
+Write the record sorting phase
 
   Use MonadAccum
+
+  Just lump it into the existing Renamer phase
 
 Add a nice Lens function like "access" but for Readers
 
