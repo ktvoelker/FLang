@@ -2,6 +2,8 @@
 TO-DO
 =====
 
+Finish the record sorting phase
+
 Add location information to the syntax tree via an L type like in GHC
 
   Also wrap errors in the L type
@@ -24,12 +26,6 @@ Add location information to the syntax tree via an L type like in GHC
 
       Then, when reporting an error, the existing report function can simply pull the
       current location out of the environment.
-
-Write the record sorting phase
-
-  Go to the places where new rec-likes are introduced, and run branch and ordering
-
-Add a nice Lens function like "access" but for Readers
 
 Write a pretty-printer back to real syntax
 

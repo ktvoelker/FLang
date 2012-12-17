@@ -52,13 +52,15 @@ getRefs :: (Monad m) => AccumT BR m (Set Integer)
 getRefs = (brRefs ^$) <$> getAccum
 
 class RenameDecl a where
-  renameLHS :: a -> MRec a
-  renameRHS :: a -> M a
+  allowCycles :: a -> Bool
+  renameLHS   :: a -> MRec a
+  renameRHS   :: a -> M a
 
 class RenamePrim a where
   renamePrim :: a -> M a
 
 instance RenameDecl ModDecl where
+  allowCycles _ = False
   -- LHS
   renameLHS (BindMod b) = BindMod <$> renameBindingLHS b
   renameLHS (BindSig b) = BindSig <$> renameBindingLHS b
@@ -83,6 +85,7 @@ instance RenameDecl ModDecl where
   renameRHS (Infix a p ns) = (Infix a p) <$> mapM renameName ns
 
 instance RenameDecl SigDecl where
+  allowCycles _ = False
   renameLHS (SigVal n e) = SigVal <$> renameNameLHS n <*> pure e
   renameLHS (SigTy n t) = SigTy <$> renameNameLHS n <*> pure t
   renameLHS (SigMod n e) = SigMod <$> renameNameLHS n <*> pure e
@@ -98,10 +101,12 @@ instance RenameDecl SigDecl where
     SigMod n <$> renameExpr e
 
 instance RenameDecl ValDecl where
+  allowCycles _ = True
   renameLHS (BindLocalVal b) = BindLocalVal <$> renameBindingLHS b
   renameRHS (BindLocalVal b) = BindLocalVal <$> renameBindingRHS b
 
 instance RenameDecl TyDecl where
+  allowCycles _ = False
   renameLHS = return
   renameRHS (FieldDecl n e) = FieldDecl n <$> renameExpr e
   renameRHS (Constraint a o b) = Constraint <$> renameExpr a <*> pure o <*> renameExpr b
@@ -152,6 +157,12 @@ renameBinderName (Binder name ty) = Binder <$> renameNameLHS name <*> pure ty
 makeRecEnv :: (RenameDecl d) => [d] -> M ([d], Env)
 makeRecEnv = makeEnv . mapM renameLHS
 
+renameSortDecls :: (RenameDecl d) => [d] -> M [d]
+renameSortDecls [] = return []
+renameSortDecls ds@(d : _) =
+  mapM (branch . renameRHS) ds
+  >>= lift3 . sortDecls (allowCycles $ undefined `asTypeOf` d)
+
 renameExpr :: (RenameDecl d, RenamePrim e) => Expr d e -> M (Expr d e)
 renameExpr (Lam bs e) = do
   (bs', env') <- renameBinders bs
@@ -160,7 +171,7 @@ renameExpr (Lam bs e) = do
 renameExpr (App f as) = App <$> renameExpr f <*> mapM renameExpr as
 renameExpr (Record ds) = do
   (ds', env') <- makeRecEnv ds
-  Record <$> (local (const env') (mapM (branch . renameRHS) ds') >>= lift3 . sortDecls)
+  Record <$> local (const env') (renameSortDecls ds')
 renameExpr (Ref n) = Ref <$> renameName n
 renameExpr e@(UniqueRef _) = return e
 renameExpr (Member e n) = Member <$> renameExpr e <*> pure n
@@ -170,7 +181,7 @@ renameExpr (OpChain e os) = OpChain <$> mapM renameExpr e <*> mapM f os
 renameExpr (Let ds e) = do
   (ds', env') <- makeRecEnv ds
   let loc = local (const env')
-  ds'' <- loc (mapM (branch . renameRHS) ds') >>= lift3 . sortDecls
+  ds'' <- loc $ renameSortDecls ds'
   e' <- loc $ renameExpr e
   Let <$> pure ds'' <*> pure e'
 renameExpr (Prim p) = Prim <$> renamePrim p
