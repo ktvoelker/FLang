@@ -29,21 +29,40 @@ instance (Monad m, MonadState s m) => MonadState s (AccumT a m) where
   put = lift . put
   state = lift . state
 
-getAccum :: (Monad m) => AccumT s m s
-getAccum = AccumT $ access asAccum
+class (Monad m) => MonadAccum a m | m -> a where
+  getAccumState :: m (AccumState a)
+  putAccum      :: a -> m ()
 
-putAccum :: (Monad m) => s -> AccumT s m ()
-putAccum = void . AccumT . (asAccum ~=)
+instance (Monad m) => MonadAccum a (AccumT a m) where
+  getAccumState = AccumT get
+  putAccum = void . AccumT . (asAccum ~=)
 
-runBranch :: (Monad m) => AccumT s m a -> AccumT s m (a, s)
-runBranch m = do
+instance (Monad m, MonadAccum a m) => MonadAccum a (ReaderT r m) where
+  getAccumState = lift getAccumState
+  putAccum = lift . putAccum
+
+instance (Monad m, MonadAccum a m) => MonadAccum a (StateT s m) where
+  getAccumState = lift getAccumState
+  putAccum = lift . putAccum
+
+getAccumField :: (Monad m, MonadAccum a m) => Lens (AccumState a) b -> m b
+getAccumField f = getAccumState >>= return . (f ^$)
+
+getAccum :: (Monad m, MonadAccum a m) => m a
+getAccum = getAccumField asAccum
+
+branch :: (Monad m, MonadAccum a m) => m b -> m (b, a)
+branch m = do
   prev <- getAccum
-  AccumT (access asInit) >>= putAccum
+  getAccumField asInit >>= putAccum
   ret  <- m
   more <- getAccum
-  fold <- AccumT $ access asFold
+  fold <- getAccumField asFold
   putAccum $ fold prev more
   return (ret, more)
+
+accum :: (Monad m, MonadAccum a m) => a -> m ()
+accum = branch . putAccum >=> const (return ())
 
 runAccumT :: (Monad m) => AccumT s m a -> s -> (s -> s -> s) -> m (a, s)
 runAccumT (AccumT m) s f =
@@ -58,7 +77,4 @@ runAccumT (AccumT m) s f =
 evalAccumT m s f = runAccumT m s f >>= return . fst
 
 execAccumT m s f = runAccumT m s f >>= return . snd
-
-accum :: (Monad m) => s -> AccumT s m ()
-accum = void . runBranch . putAccum
 

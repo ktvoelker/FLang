@@ -8,6 +8,8 @@ import Common
 import Syntax
 import Types
 
+import Renamer.Sorter
+
 type M = ReaderT Env (StateT Global (AccumT BR FM))
 
 rename :: Program -> FM Global
@@ -158,7 +160,7 @@ renameExpr (Lam bs e) = do
 renameExpr (App f as) = App <$> renameExpr f <*> mapM renameExpr as
 renameExpr (Record ds) = do
   (ds', env') <- makeRecEnv ds
-  Record <$> local (const env') (mapM renameRHS ds')
+  Record <$> (local (const env') (mapM (branch . renameRHS) ds') >>= lift3 . sortDecls)
 renameExpr (Ref n) = Ref <$> renameName n
 renameExpr e@(UniqueRef _) = return e
 renameExpr (Member e n) = Member <$> renameExpr e <*> pure n

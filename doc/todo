@@ -27,8 +27,6 @@ Add location information to the syntax tree via an L type like in GHC
 
 Write the record sorting phase
 
-  Check the output - report an EInternal with the contents of each set at the top
-
   Go to the places where new rec-likes are introduced, and run branch and ordering
 
 Add a nice Lens function like "access" but for Readers
