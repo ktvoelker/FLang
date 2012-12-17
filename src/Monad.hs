@@ -31,6 +31,10 @@ instance Monad FM where
 instance Functor FM where
   fmap f m = m >>= return . f
 
+instance Applicative FM where
+  pure = return
+  (<*>) = liftM2 ($)
+
 instance MonadPlus FM where
   mzero = FM $ return Nothing
   mplus (FM a) (FM b) = FM $ a >>= maybe b (return . Just)

@@ -4,6 +4,17 @@ TO-DO
 
 Finish the record sorting phase
 
+  Make a function that maps a decl to all the BindNames it contains
+
+    Use it to produce error messages for cycles
+
+    We could use this to get rid of the two-phase approach with the LHS and the RHS
+
+      Instead, just allocate uniques for all the BindNames up front by finding them
+      all with this function; then, with the necessary mappings added to the scope,
+      traverse the AST, replacing both the BindNames that perform binding and those
+      that just appear in Refs in the same pass
+
 Add location information to the syntax tree via an L type like in GHC
 
   Also wrap errors in the L type
