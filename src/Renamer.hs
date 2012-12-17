@@ -169,10 +169,10 @@ renameExpr (OpChain e os) = OpChain <$> mapM renameExpr e <*> mapM f os
     f (a, b) = (,) <$> renameExpr a <*> renameExpr b
 renameExpr (Let ds e) = do
   (ds', env') <- makeRecEnv ds
-  (ds'', e')  <-
-    local (const env')
-    $ (,) <$> mapM renameRHS ds' <*> renameExpr e
-  return $ Let ds'' e'
+  let loc = local (const env')
+  ds'' <- loc (mapM (branch . renameRHS) ds') >>= lift3 . sortDecls
+  e' <- loc $ renameExpr e
+  Let <$> pure ds'' <*> pure e'
 renameExpr (Prim p) = Prim <$> renamePrim p
 renameExpr ToDo = return ToDo
 
