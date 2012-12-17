@@ -51,7 +51,7 @@ getBinds = (brBinds ^$) <$> getAccum
 getRefs :: (Monad m) => AccumT BR m (Set Integer)
 getRefs = (brRefs ^$) <$> getAccum
 
-class RenameDecl a where
+class (Show a) => RenameDecl a where
   allowCycles :: a -> Bool
   renameLHS   :: a -> MRec a
   renameRHS   :: a -> M a

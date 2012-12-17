@@ -16,7 +16,7 @@ import Types
  - 5. Report circularity errors, if prohibited
  - 6. Flatten the SCC values into a list of the decls
  -}
-sortDecls :: Bool -> [(a, BR)] -> FM [a]
+sortDecls :: (Show a) => Bool -> [(a, BR)] -> FM [a]
 sortDecls allowCycles ds = do
   let brs = map snd ds
   let bs = map (brBinds ^$) brs
@@ -28,10 +28,18 @@ sortDecls allowCycles ds = do
   -- Make the referencing graph
   let graph = [(decl, bindKey (br ^. brBinds), refsKeys brs br) | (decl, br) <- ds]
   let sccs = stronglyConnComp graph
+  report . EInternal . show . map (\(_, bs, rs) -> (bs, rs)) $ graph
   -- Report circularity errors
-  when (not allowCycles) $ undefined -- TODO
+  when (not allowCycles)
+    . mapM_ (report . ECircRef . show . length . flattenSCC)
+    . filter isCycle
+    $ sccs
   -- Result: the decls, in order
   flattenSCCs <$> pure sccs
+
+isCycle :: SCC a -> Bool
+isCycle (AcyclicSCC _) = False
+isCycle (CyclicSCC _) = True
 
 twoDisjoint :: (Ord a) => Set a -> Set a -> Bool
 twoDisjoint = (Set.null .) . Set.intersection
@@ -55,5 +63,5 @@ refKey bss n =
   $ bss
 
 refsKeys :: [BR] -> BR -> [Key]
-refsKeys bss = catMaybes . map (refKey bss) . Set.toList . (brRefs ^$)
+refsKeys bss = catMaybes . Set.toList . Set.map (refKey bss) . (brRefs ^$)
 

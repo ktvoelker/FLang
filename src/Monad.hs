@@ -13,6 +13,7 @@ data CompileError =
   | EParser ParseError
   | EInternal String
   | EUnbound String
+  | ECircRef String
   deriving (Show)
 
 newtype FM a = FM { getFM :: Writer [CompileError] (Maybe a) }

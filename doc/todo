@@ -2,6 +2,23 @@
 TO-DO
 =====
 
+Debug the record sorter
+
+  There might be a bug causing module and sig bindings to get added to their own
+  ref sets
+
+  There's another problem: it's not as simple as saying that cycles aren't allowed
+  among ModDecls...in fact, they are, but only if those cycles are entirely between
+  BindVals.
+
+    The obvious solution is to make a typeclass with allowInCycles :: a -> Bool,
+    and to expose that class to the sorter. This would be called per decl, not on
+    a dummy value forced into the type a. It will be true for BindVal and BindLocalVal,
+    and false for other bindings.
+
+      Since this is a known problem, fix it first. Maybe the other problem is somehow
+      a symptom of this.
+
 Finish the record sorting phase
 
   Make a function that maps a decl to all the BindNames it contains
