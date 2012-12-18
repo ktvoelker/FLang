@@ -2,11 +2,6 @@
 TO-DO
 =====
 
-Debug the record sorter
-
-  There might be a bug causing module and sig bindings to get added to their own
-  ref sets
-
 Finish the record sorting phase
 
   Make a function that maps a decl to all the BindNames it contains
@@ -19,6 +14,9 @@ Finish the record sorting phase
       all with this function; then, with the necessary mappings added to the scope,
       traverse the AST, replacing both the BindNames that perform binding and those
       that just appear in Refs in the same pass
+
+        This would also make it easier to solve the current bug in which bindings
+        are propagated upward in the B-sets to places where they're not in scope.
 
 Consider requiring a special symbol to be prefixed onto any global Ref
 

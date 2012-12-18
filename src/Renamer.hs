@@ -114,7 +114,9 @@ renameNameLHS n@(BindName xs) = do
   return $ UniqueName n' xs
 
 renameBindingLHS
-  :: (RenameDecl d, RenamePrim e) => Binding (Expr d e) -> MRec (Binding (Expr d e))
+  :: (RenameDecl d, RenamePrim e)
+  => Binding (Expr d e)
+  -> MRec (Binding (Expr d e))
 renameBindingLHS (Binding (Binder n t) e) = do
   n' <- renameNameLHS n
   return $ Binding (Binder n' t) e

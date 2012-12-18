@@ -59,6 +59,7 @@ data ModDecl =
 
 instance Decl ModDecl where
   allowInCycles (BindVal _) = True
+  allowInCycles (Data _ _ _ _ _) = True
   allowInCycles _ = False
 
 data TyBound = TyBound TyCompOp TyExpr
