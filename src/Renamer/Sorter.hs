@@ -5,6 +5,7 @@ import Data.Graph
 import qualified Data.Set as Set
 
 import Common
+import Syntax (Decl(allowInCycles))
 import Types
 
 {--
@@ -16,8 +17,8 @@ import Types
  - 5. Report circularity errors, if prohibited
  - 6. Flatten the SCC values into a list of the decls
  -}
-sortDecls :: (Show a) => Bool -> [(a, BR)] -> FM [a]
-sortDecls allowCycles ds = do
+sortDecls :: (Decl a, Show a) => [(a, BR)] -> FM [a]
+sortDecls ds = do
   let brs = map snd ds
   let bs = map (brBinds ^$) brs
   -- Check that the binding sets are disjoint
@@ -30,8 +31,9 @@ sortDecls allowCycles ds = do
   let sccs = stronglyConnComp graph
   report . EInternal . show . map (\(_, bs, rs) -> (bs, rs)) $ graph
   -- Report circularity errors
-  when (not allowCycles)
-    . mapM_ (report . ECircRef . show . length . flattenSCC)
+  mapM_ (report . ECircRef . show . length)
+    . filter (any $ not . allowInCycles)
+    . map flattenSCC
     . filter isCycle
     $ sccs
   -- Result: the decls, in order

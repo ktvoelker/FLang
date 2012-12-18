@@ -45,6 +45,9 @@ type ValBinding = Binding ValExpr
 
 type TyBinding = Binding TyExpr
 
+class Decl a where
+  allowInCycles :: a -> Bool
+
 data ModDecl =
     BindMod ModBinding
   | BindSig SigBinding
@@ -53,6 +56,10 @@ data ModDecl =
   | Data DataMode BindName (Maybe TyExpr) TyExpr [ModDecl]
   | Infix InfixAssoc Integer [BindName]
   deriving (Eq, Ord, Show)
+
+instance Decl ModDecl where
+  allowInCycles (BindVal _) = True
+  allowInCycles _ = False
 
 data TyBound = TyBound TyCompOp TyExpr
   deriving (Eq, Ord, Show)
@@ -66,13 +73,22 @@ data SigDecl =
   | SigMod BindName TyExpr
   deriving (Eq, Ord, Show)
 
+instance Decl SigDecl where
+  allowInCycles = const False
+
 data ValDecl = BindLocalVal ValBinding
   deriving (Eq, Ord, Show)
+
+instance Decl ValDecl where
+  allowInCycles = const True
 
 data TyDecl =
     FieldDecl BindName TyExpr
   | Constraint TyExpr TyCompOp TyExpr
   deriving (Eq, Ord, Show)
+
+instance Decl TyDecl where
+  allowInCycles = const False
 
 data Expr d e =
     Lam [Binder] (Expr d e)
