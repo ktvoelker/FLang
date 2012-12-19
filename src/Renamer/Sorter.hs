@@ -5,8 +5,7 @@ import Data.Graph
 import qualified Data.Set as Set
 
 import Common
-import Syntax (Decl(allowInCycles))
-import Types
+import Syntax
 
 {--
  - 1. Sanity check: the B sets are disjoint
@@ -17,17 +16,12 @@ import Types
  - 5. Report circularity errors, if prohibited
  - 6. Flatten the SCC values into a list of the decls
  -}
-sortDecls :: (Decl a, Show a) => [(a, BR)] -> FM [a]
-sortDecls ds = do
-  let brs = map snd ds
-  let bs = map (brBinds ^$) brs
-  -- Check that the binding sets are disjoint
-  when (not . disjoint $ bs)
-    . report
-    . EInternal
-    $ "Non-disjoint binding sets: " ++ show bs
+sortDecls :: (Decl a, Show a) => [(a, Set Integer)] -> FM [a]
+sortDecls pairs = do
+  -- TODO put the sanity check back
+  -- TODO precompute the Key of each Decl once
   -- Make the referencing graph
-  let graph = [(decl, bindKey (br ^. brBinds), refsKeys brs br) | (decl, br) <- ds]
+  let graph = [(decl, bindKey decl, refsKeys rs pairs) | (decl, rs) <- pairs]
   let sccs = stronglyConnComp graph
   report . EInternal . show . map (\(_, bs, rs) -> (bs, rs)) $ graph
   -- Report circularity errors
@@ -53,17 +47,20 @@ disjoint ss = all id [twoDisjoint as bs | (as, ka) <- ss', (bs, kb) <- ss', ka /
 
 newtype Key = Key Integer deriving (Eq, Ord, Show)
 
-bindKey :: Set Integer -> Key
-bindKey = fromJust . fmap (Key . fst) . Set.minView
+-- TODO: we should be using richer types so the impossible is known to be so
+bindKey :: (Decl a) => a -> Key
+bindKey = Key . fromJust . listToMaybe . sort . map f . declBindNames
+  where
+    f (UniqueName n _) = n
+    f _ = error "Impossible!"
 
-refKey :: [BR] -> Integer -> Maybe Key
-refKey bss n =
-  fmap bindKey
-  . listToMaybe
-  . filter (Set.member n)
-  . map (brBinds ^$)
-  $ bss
+refKey :: (Decl a) => Integer -> [(a, Set Integer)] -> Key
+refKey ref =
+  bindKey
+  . fst
+  . head
+  . filter (Set.member ref . snd)
 
-refsKeys :: [BR] -> BR -> [Key]
-refsKeys bss = catMaybes . Set.toList . Set.map (refKey bss) . (brRefs ^$)
+refsKeys :: (Decl a) => Set Integer -> [(a, Set Integer)] -> [Key]
+refsKeys refs pairs = map (`refKey` pairs) . Set.toList $ refs
 

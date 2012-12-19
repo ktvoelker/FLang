@@ -37,6 +37,9 @@ data Binder =
 data Binding e = Binding Binder e
   deriving (Eq, Ord, Show)
 
+bindingName :: Binding e -> BindName
+bindingName (Binding b _) = binderName b
+
 type ModBinding = Binding ModExpr
 
 type SigBinding = Binding SigExpr
@@ -47,6 +50,7 @@ type TyBinding = Binding TyExpr
 
 class Decl a where
   allowInCycles :: a -> Bool
+  declBindNames :: a -> [BindName]
 
 data ModDecl =
     BindMod ModBinding
@@ -61,6 +65,12 @@ instance Decl ModDecl where
   allowInCycles (BindVal _) = True
   allowInCycles (Data _ _ _ _ _) = True
   allowInCycles _ = False
+  declBindNames (BindMod b) = [bindingName b]
+  declBindNames (BindSig b) = [bindingName b]
+  declBindNames (BindVal b) = [bindingName b]
+  declBindNames (BindTy b) = [bindingName b]
+  declBindNames (Data _ n _ _ ds) = n : concatMap declBindNames ds
+  declBindNames (Infix _ _ _) = []
 
 data TyBound = TyBound TyCompOp TyExpr
   deriving (Eq, Ord, Show)
@@ -76,12 +86,16 @@ data SigDecl =
 
 instance Decl SigDecl where
   allowInCycles = const False
+  declBindNames (SigVal n _) = [n]
+  declBindNames (SigTy n _) = [n]
+  declBindNames (SigMod n _) = [n]
 
 data ValDecl = BindLocalVal ValBinding
   deriving (Eq, Ord, Show)
 
 instance Decl ValDecl where
   allowInCycles = const True
+  declBindNames (BindLocalVal b) = [bindingName b]
 
 data TyDecl =
     FieldDecl BindName TyExpr
@@ -90,6 +104,7 @@ data TyDecl =
 
 instance Decl TyDecl where
   allowInCycles = const False
+  declBindNames = const []
 
 data Expr d e =
     Lam [Binder] (Expr d e)

@@ -10,11 +10,13 @@ import Types
 
 import Renamer.Sorter
 
-type M = ReaderT Env (StateT Global (AccumT BR FM))
+type AR = AccumT (Set Integer)
+
+type M = ReaderT Env (StateT Global (AR FM))
 
 rename :: Program -> FM Global
 rename p =
-  evalAccumT (execStateT (runReaderT f emptyEnv) $ emptyGlobal $ p) emptyBR accumBR
+  evalAccumT (execStateT (runReaderT f emptyEnv) $ emptyGlobal $ p) Set.empty Set.union
   where
     f = do
       result <- gRoot %>>= renameExpr
@@ -34,22 +36,8 @@ makeEnv m = do
 allocUnique :: (MonadState Global m) => m Integer
 allocUnique = gNextUnique %= (+ 1)
 
-insertBind :: (Monad m) => Integer -> AccumT BR m ()
-insertBind n = getAccum >>= putAccum . (brBinds ^%= Set.insert n)
-
-insertBindName :: BindName -> M ()
-insertBindName (UniqueName z _) = lift2 . insertBind $ z
-insertBindName (BindName xs) =
-  lift3 . report . EInternal $ "Unexpected BindName: " ++ xs
-
-insertRef :: (Monad m) => Integer -> AccumT BR m ()
-insertRef n = getAccum >>= putAccum . (brRefs ^%= Set.insert n)
-
-getBinds :: (Monad m) => AccumT BR m (Set Integer)
-getBinds = (brBinds ^$) <$> getAccum
-
-getRefs :: (Monad m) => AccumT BR m (Set Integer)
-getRefs = (brRefs ^$) <$> getAccum
+insertRef :: (Monad m) => Integer -> AR m ()
+insertRef n = getAccum >>= putAccum . Set.insert n
 
 class (Decl a, Show a) => RenameDecl a where
   renameLHS   :: a -> MRec a
@@ -75,7 +63,6 @@ instance RenameDecl ModDecl where
   renameRHS (BindVal b) = BindVal <$> renameBindingRHS b
   renameRHS (BindTy b) = BindTy <$> renameBindingRHS b
   renameRHS (Data m n p t ds) = do
-    insertBindName n
     p'  <- maybe (return Nothing) (fmap Just . renameExpr) p
     t'  <- renameExpr t
     ds' <- mapM renameRHS ds
@@ -87,14 +74,11 @@ instance RenameDecl SigDecl where
   renameLHS (SigTy n t) = SigTy <$> renameNameLHS n <*> pure t
   renameLHS (SigMod n e) = SigMod <$> renameNameLHS n <*> pure e
   renameRHS (SigVal n e) = do
-    insertBindName n
     SigVal n <$> renameExpr e
-  renameRHS t@(SigTy n Nothing) = insertBindName n >> return t
+  renameRHS t@(SigTy _ Nothing) = return t
   renameRHS (SigTy n (Just (TyBound o e))) = do
-    insertBindName n
     SigTy n . Just . TyBound o <$> renameExpr e
   renameRHS (SigMod n e) = do
-    insertBindName n
     SigMod n <$> renameExpr e
 
 instance RenameDecl ValDecl where
@@ -124,7 +108,6 @@ renameBindingLHS (Binding (Binder n t) e) = do
 renameBindingRHS
   :: (RenameDecl d, RenamePrim e) => Binding (Expr d e) -> M (Binding (Expr d e))
 renameBindingRHS (Binding (Binder n t) e) = do
-  insertBindName n
   t' <- maybe (return Nothing) (fmap Just . renameExpr) t
   Binding (Binder n t') <$> renameExpr e
 
@@ -160,7 +143,6 @@ renameSortDecls ds = mapM (branch . renameRHS) ds >>= lift3 . sortDecls
 renameExpr :: (RenameDecl d, RenamePrim e) => Expr d e -> M (Expr d e)
 renameExpr (Lam bs e) = do
   (bs', env') <- renameBinders bs
-  mapM_ insertBindName . map binderName $ bs'
   Lam bs' <$> local (const env') (renameExpr e)
 renameExpr (App f as) = App <$> renameExpr f <*> mapM renameExpr as
 renameExpr (Record ds) = do
@@ -200,10 +182,7 @@ renameCaseClause (CaseClause p v) = do
   CaseClause p' <$> local (const env') (renameExpr v)
 
 renamePat :: Pat -> M (Pat, Env)
-renamePat p = do
-  result@(p', _) <- renamePatExprs >=> makeEnv . renamePatBinds $ p
-  mapM_ insertBindName . getPatBinds $ p'
-  return result
+renamePat = renamePatExprs >=> makeEnv . renamePatBinds
 
 renamePatExprs (PatParams ps) = PatParams <$> mapM renamePatExprs ps
 renamePatExprs (PatApp e ps) = PatApp <$> renameExpr e <*> mapM renamePatExprs ps
