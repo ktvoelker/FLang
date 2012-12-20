@@ -2,20 +2,30 @@
 TO-DO
 =====
 
-Check that the renamer and sorter now work
+Write a pretty-printer back to real syntax
 
-Finish the record sorting phase
+  Use intelligent line-breaking when faced with a long expression
+  * Prefer to break lines higher up in the AST, rather than at the latest possible
+    moment
+    * But do this in a generic way: send a stream of information to the "output"
+      which includes:
+        * Tokens to print, with rules for adding adjacent spaces
+        * Mandatory newlines
+        * Ident and dedent
+        * Syntactic descent and ascent
+          * Use these to find better places to break lines
 
-  Make a function that maps a decl to all the BindNames it contains (DONE)
+  Note: dealing with operators correctly requires knowing the precedence of each
+  operator reference, which requires the resolution phase to be implemented.
 
-    Use it to produce error messages for cycles
+Improve the ECirc errors in the sorter
 
-    We could use this to get rid of the two-phase approach with the LHS and the RHS
+Get rid of the complicated LHS phase in the renamer, and just use declBindNames
 
-      Instead, just allocate uniques for all the BindNames up front by finding them
-      all with this function; then, with the necessary mappings added to the scope,
-      traverse the AST, replacing both the BindNames that perform binding and those
-      that just appear in Refs in the same pass
+  Instead, just allocate uniques for all the BindNames up front by finding them
+  all with this function; then, with the necessary mappings added to the scope,
+  traverse the AST, replacing both the BindNames that perform binding and those
+  that just appear in Refs in the same pass
 
 Consider requiring a special symbol to be prefixed onto any global Ref
 
@@ -41,22 +51,6 @@ Add location information to the syntax tree via an L type like in GHC
 
       Then, when reporting an error, the existing report function can simply pull the
       current location out of the environment.
-
-Write a pretty-printer back to real syntax
-
-  Use intelligent line-breaking when faced with a long expression
-  * Prefer to break lines higher up in the AST, rather than at the latest possible
-    moment
-    * But do this in a generic way: send a stream of information to the "output"
-      which includes:
-        * Tokens to print, with rules for adding adjacent spaces
-        * Mandatory newlines
-        * Ident and dedent
-        * Syntactic descent and ascent
-          * Use these to find better places to break lines
-
-  Note: dealing with operators correctly requires knowing the precedence of each
-  operator reference, which requires the resolution phase to be implemented.
 
 Fix this weird thing: in a case-function, in an else clause, you might want to bind
 the arguments to variables. But you can't. So you have to use an "if" with all plain

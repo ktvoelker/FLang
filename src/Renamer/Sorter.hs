@@ -19,11 +19,9 @@ import Syntax
 sortDecls :: (Decl a, Show a) => [(a, Set Integer)] -> FM [a]
 sortDecls pairs = do
   -- TODO put the sanity check back
-  -- TODO precompute the Key of each Decl once
   -- Make the referencing graph
-  let graph = [(decl, bindKey decl, refsKeys rs pairs) | (decl, rs) <- pairs]
+  let graph = [(decl, bindKey decl, map Key . Set.toList $ rs) | (decl, rs) <- pairs]
   let sccs = stronglyConnComp graph
-  report . EInternal . show . map (\(_, bs, rs) -> (bs, rs)) $ graph
   -- Report circularity errors
   mapM_ (report . ECircRef . show . length)
     . filter (any $ not . allowInCycles)
@@ -53,14 +51,4 @@ bindKey = Key . fromJust . listToMaybe . sort . map f . declBindNames
   where
     f (UniqueName n _) = n
     f _ = error "Impossible!"
-
-refKey :: (Decl a) => Integer -> [(a, Set Integer)] -> Key
-refKey ref =
-  bindKey
-  . fst
-  . head
-  . filter (Set.member ref . snd)
-
-refsKeys :: (Decl a) => Set Integer -> [(a, Set Integer)] -> [Key]
-refsKeys refs pairs = map (`refKey` pairs) . Set.toList $ refs
 
