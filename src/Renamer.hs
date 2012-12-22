@@ -156,17 +156,16 @@ renameExpr (OpChain e os) = OpChain <$> mapM renameExpr e <*> mapM f os
     f (a, b) = (,) <$> renameExpr a <*> renameExpr b
 renameExpr (Let ds e) = do
   (ds', env') <- makeRecEnv ds
-  let loc = local (const env')
-  ds'' <- loc $ renameSortDecls ds'
-  e' <- loc $ renameExpr e
+  ds'' <- local (const env') $ renameSortDecls ds'
+  e' <- local (const env') $ renameExpr e
   Let <$> pure ds'' <*> pure e'
 renameExpr (Prim p) = Prim <$> renamePrim p
 renameExpr ToDo = return ToDo
 
-instance RenamePrim () where
-  renamePrim () = do
+instance RenamePrim No where
+  renamePrim no = do
     lift3 . report $ EInternal "Unexpected Prim found in ModExpr or SigExpr"
-    return ()
+    return no
 
 instance RenamePrim ValPrim where
   renamePrim (LamCase xs) = LamCase <$> mapM renameCaseClause xs

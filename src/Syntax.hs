@@ -2,13 +2,32 @@
 module Syntax where
 
 import Common
+import Pretty
+
+data No
+
+instance Eq No where
+  _ == _ = True
+
+instance Ord No where
+  compare _ _ = EQ
+
+instance Show No where
+  show _ = "()"
+
+instance Pretty No SyntaxKind where
+  tokens _ = []
+
+data SyntaxKind = SKText | SKOper | SKSep | SKLBracket | SKRBracket
+  deriving (Eq, Ord, Show)
+
+instance TokenKind SyntaxKind where
+  space _ SKSep = False
+  space SKLBracket _ = False
+  space _ SKRBracket = False
+  space _ _ = True
 
 type Program = ModExpr
-
-data ModName =
-    UserModName [BindName]
-  | GenModName Integer String
-  deriving (Eq, Ord, Show)
 
 data BindName = BindName String | UniqueName Integer String
   deriving (Eq, Ord, Show)
@@ -60,6 +79,9 @@ data ModDecl =
   | Data DataMode BindName (Maybe TyExpr) TyExpr [ModDecl]
   | Infix InfixAssoc Integer [BindName]
   deriving (Eq, Ord, Show)
+
+instance Pretty ModDecl SyntaxKind where
+  tokens = undefined
 
 instance Decl ModDecl where
   allowInCycles (BindVal _) = True
@@ -119,6 +141,11 @@ data Expr d e =
   | ToDo
   deriving (Eq, Ord, Show)
 
+instance
+  (Pretty d SyntaxKind, Pretty e SyntaxKind)
+  => Pretty (Expr d e) SyntaxKind where
+  tokens = undefined
+
 data ValPrim =
     LamCase [CaseClause]
   | Case ValExpr [CaseClause]
@@ -151,9 +178,9 @@ data Pat =
 data TyPrim = TyFn | TyAuto | TyEmpty
   deriving (Eq, Ord, Show)
 
-type ModExpr = Expr ModDecl ()
+type ModExpr = Expr ModDecl No
 
-type SigExpr = Expr SigDecl ()
+type SigExpr = Expr SigDecl No
 
 type ValExpr = Expr ValDecl ValPrim
 

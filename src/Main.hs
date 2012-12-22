@@ -5,13 +5,14 @@ import Common
 import Common.IO
 import Lexer
 import Parser
+import Pretty
 import Renamer
 import Syntax
 
 import Text.Show.Pretty
 
-runPhase :: (Show o) => (i -> FM o) -> i -> String
-runPhase f xs = ppShow out ++ ppShow errs
+runPhase :: (MonadIO m) => (i -> FM String) -> i -> m ()
+runPhase f xs = liftIO . mapM_ putStrLn $ maybeToList out ++ map ppShow errs
   where
     (out, errs) = runFM . f $ xs
 
@@ -24,9 +25,9 @@ parsePhase = lexPhase' >=> mapM (uncurry parse)
 renamePhase = parsePhase >=> rename . Record
 
 phases =
-  [ ("lex", runPhase lexPhase)
-  , ("parse", runPhase parsePhase)
-  , ("rename", runPhase renamePhase)
+  [ ("lex", runPhase $ lexPhase >=> return . concatMap ppShow)
+  , ("parse", runPhase $ parsePhase >=> return . concatMap pretty)
+  , ("rename", runPhase $ renamePhase >=> return . pretty)
   ]
 
 getInput xs = fmap (xs,) $ case xs of
@@ -37,5 +38,5 @@ main = do
   (phase : files) <- getArgs
   case lookup phase phases of
     Nothing -> putStrLn $ "Unknown phase: " ++ phase
-    Just fn -> mapM getInput files >>= putStrLn . fn
+    Just fn -> mapM getInput files >>= fn
  

@@ -1,34 +1,69 @@
 
+{-# LANGUAGE UndecidableInstances #-}
 module Pretty where
 
-class Pretty a where
-  type TokenKind a
-  tokens :: a -> [Token (TokenKind a)]
-  space  :: TokenKind a -> TokenKind a -> Bool
+import Common
+import Pretty.Internal
+
+class (TokenKind b) => Pretty a b | a -> b where
+  tokens :: a -> [Token b]
+
+class TokenKind a where
+  space :: a -> a -> Bool
 
 data Token a = Word String a | LineBreak Int | Depth Int
+  deriving (Eq, Ord)
+
+data SToken = SWord String | SSpace | SLineBreak Int | SDepth Int
   deriving (Eq, Ord, Show)
 
-data SToken = Word String | Space | LineBreak Int | Depth Int
-  deriving (Eq, Ord, Show)
+pretty :: (Pretty a b) => a -> String
+pretty = format . prepare . tokens
 
-prepare :: (Pretty a, TokenKind a ~ b) => [Token b] -> [SToken]
-prepare = undefined
+prepare :: (TokenKind a) => [Token a] -> [SToken]
+prepare [] = []
+-- LineBreak ...
+prepare (LineBreak n : ts) = SLineBreak n : prepare ts
+-- Depth Depth ...
+prepare ts@(Depth _ : Depth _ : _) = prepare $ depthCollapse ts
+-- Depth ...
+prepare (Depth n : ts) = SDepth n : prepare ts
+-- Word LineBreak ...
+prepare (Word xs _ : LineBreak n : ts) =
+  SWord xs : SLineBreak n : prepare ts
+-- Word Depth Depth ...
+prepare (t@(Word _ _) : ts@(Depth _ : Depth _ : _)) =
+  prepare $ t : depthCollapse ts
+-- Word Depth Word ...
+prepare (Word xs a : Depth n : Word ys b : ts) =
+  SWord xs : spaced a b (SDepth n : SWord ys : prepare ts)
+-- Word Word ...
+prepare (Word xs a : Word ys b : ts) =
+  SWord xs : spaced a b (SWord ys : prepare ts)
+-- Word Depth ...
+prepare (Word xs _ : Depth n : ts) =
+  SWord xs : SDepth n : prepare ts
+-- Word
+prepare [Word xs _] = [SWord xs]
 
-instance Show Token where
-  show w@Word{} = chars w
-  show _ = ""
-  showList xs = undefined
+depthCollapse :: [Token a] -> [Token a]
+depthCollapse (Depth m : Depth n : ts) = depthCollapse $ Depth (m + n) : ts
+depthCollapse ts = ts
+
+spaced :: (TokenKind a) => a -> a -> [SToken] -> [SToken]
+spaced a b = case space a b of
+  True  -> (SSpace :)
+  False -> id
+
+format :: [SToken] -> String
+format = evalState (runReaderT mShow initEnv)
+
+type M = ReaderT Env (State [SToken])
+
+mShow :: M String
+mShow = undefined
 
 {--
- - Stuff we need:
- - 1. ReaderT to keep track of the current nominal indentation level and syntactic
- -    depth, as well as what the syntactic depth was just after the last mandatory
- -    line break. Also the current desired line length and spaces per indent.
- - 2. Do we need StateT?
- - 3. List monad for backtracking across various line-breaking options.
- - 4. Where does the output go when finalized? We can just return it.
- -
  - Find all the tokens up to the next hard line break. If they don't fit on one line,
  - apply various line-breaking strategies to split them into multiple lines. Each
  - strategy should be given the tokens that need splitting (with the precomputed
