@@ -14,9 +14,6 @@ class TokenKind a where
 data Token a = Word String a | LineBreak Int | Depth Int
   deriving (Eq, Ord)
 
-data SToken = SWord String | SSpace | SLineBreak Int | SDepth Int
-  deriving (Eq, Ord, Show)
-
 pretty :: (Pretty a b) => a -> String
 pretty = format . prepare . tokens
 
@@ -56,12 +53,23 @@ spaced a b = case space a b of
   False -> id
 
 format :: [SToken] -> String
-format = evalState (runReaderT mShow initEnv)
+format = evalState mShow . initPrettyState
 
-type M = ReaderT Env (State [SToken])
+type M = State PrettyState
 
 mShow :: M String
 mShow = undefined
+
+type LineResult = M (Maybe [String])
+
+type LineStrategy = String -> LineResult
+
+strategies = [simpleStrategy]
+
+bestResult = flip mapM strategies . flip ($) >=> return . foldr mplus Nothing
+
+simpleStrategy :: LineStrategy
+simpleStrategy = return . Just . (: [])
 
 {--
  - Find all the tokens up to the next hard line break. If they don't fit on one line,

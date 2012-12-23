@@ -12,6 +12,7 @@ module Import
   , module Data.List
   , module Data.Map
   , module Data.Maybe
+  , module Data.Ord
   , module Data.Ratio
   , module Data.Set
   , module Data.Traversable
@@ -30,6 +31,7 @@ import Data.Lens
 import Data.List hiding (mapAccumL, mapAccumR)
 import Data.Map (Map())
 import Data.Maybe
+import Data.Ord
 import Data.Ratio
 import Data.Set (Set())
 import Data.Traversable
