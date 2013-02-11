@@ -53,6 +53,13 @@ data Binder =
   , binderTy   :: Maybe TyExpr
   } deriving (Eq, Ord, Show)
 
+instance Pretty Binder SyntaxKind where
+  tokens (Binder name Nothing) = tokens name
+  tokens (Binder name (Just ty)) = tellBrackets "(" ")" $ do
+    tokens name
+    t1 SKOper ":"
+    tokens ty
+
 data Binding e = Binding Binder e
   deriving (Eq, Ord, Show)
 
@@ -239,8 +246,11 @@ data Expr d e =
 instance
   (Pretty d SyntaxKind, Pretty e SyntaxKind)
   => Pretty (Expr d e) SyntaxKind where
-  tokens (Lam _ _) = tellBrackets "(" ")" $ do
-    undefined
+  tokens (Lam ps e) = tellBrackets "(" ")" $ do
+    tt "fn"
+    mapM_ tokens ps
+    t1 SKOper "->"
+    tokens e
   tokens (App e es) = tokens e >> mapM_ tokens es
   tokens (Record ds) = do
     tt "rec"
@@ -252,7 +262,11 @@ instance
     tokens e
     t1 SKOper "."
     tokens name
-  tokens (OpChain _ _) = undefined
+  tokens (OpChain x xs) = f $ mapM_ (\(o, e) -> tokens o >> tokens e) xs
+    where
+      f = case x of
+        Nothing -> tellBrackets "(" ")"
+        Just x  -> (tokens x >>)
   tokens (Let ds e) = tellBrackets "(" ")" $ do
     tt "let"
     tellBrackets "{" "}" $ mapM_ tokens ds
@@ -272,19 +286,36 @@ data ValPrim =
   deriving (Eq, Ord, Show)
 
 instance Pretty ValPrim SyntaxKind where
-  tokens (LamCase _) = undefined
-  tokens (Case _ _) = undefined
+  tokens (LamCase cs) = do
+    tt "fn"
+    tt "of"
+    tellBrackets "{" "}" $ mapM_ tokens cs
+  tokens (Case e cs) = do
+    tt "case"
+    tokens e
+    tt "of"
+    tellBrackets "{" "}" $ mapM_ tokens cs
   tokens (Do es) = tt "do" >> tellBrackets "{" "}" (mapM_ tokens es)
   tokens (EInt n) = tt $ show n
   tokens (EFloat (a :% b)) = tellBrackets "(" ")" $ do
     tt $ show a
     t1 SKOper "/"
     tt $ show b
-  tokens (EString _) = undefined
-  tokens (EChar _) = undefined
+  -- TODO escape properly
+  tokens (EString xs) = tt $ "\"" ++ xs ++ "\""
+  -- TODO escape properly
+  tokens (EChar x) = tt $ "'" ++ [x] ++ "'"
 
 data CaseClause = CaseClause Pat ValExpr
   deriving (Eq, Ord, Show)
+
+instance Pretty CaseClause SyntaxKind where
+  tokens (CaseClause pat expr) = do
+    tt "if"
+    tokens pat
+    tt "then"
+    tokens expr
+    t1 SKOper ";"
 
 data DoElem =
     DoLet [ValDecl]
@@ -317,7 +348,15 @@ data Pat =
   deriving (Eq, Ord, Show)
 
 instance Pretty Pat SyntaxKind where
-  tokens = undefined
+  tokens (PatParams ps) = mapM_ tokens ps
+  tokens (PatBind name) = tokens name
+  tokens (PatApp expr ps) = tellBrackets "(" ")" $ do
+    tokens expr
+    mapM_ tokens ps
+  tokens (PatInt n) = tokens $ EInt n
+  tokens (PatString xs) = tokens $ EString xs
+  tokens (PatChar x) = tokens $ EChar x
+  tokens PatIgnore = tt "_"
 
 data TyPrim = TyFn | TyAuto | TyEmpty
   deriving (Eq, Ord, Show)
