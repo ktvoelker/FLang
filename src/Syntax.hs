@@ -56,6 +56,13 @@ data Binder =
 data Binding e = Binding Binder e
   deriving (Eq, Ord, Show)
 
+instance (Pretty e SyntaxKind) => Pretty (Binding e) SyntaxKind where
+  tokens (Binding (Binder name ty) rhs) = do
+    tokens name
+    whenJust ty $ \ty -> t1 SKOper ":" >> tokens ty
+    tt "is"
+    tokens rhs
+
 bindingName :: Binding e -> BindName
 bindingName (Binding b _) = binderName b
 
@@ -152,6 +159,9 @@ data SigDecl =
   | SigMod BindName TyExpr
   deriving (Eq, Ord, Show)
 
+instance Pretty SigDecl SyntaxKind where
+  tokens = undefined
+
 instance Decl SigDecl where
   allowInCycles = const False
   declBindNames (SigVal n _) = [n]
@@ -161,6 +171,9 @@ instance Decl SigDecl where
 data ValDecl = BindLocalVal ValBinding
   deriving (Eq, Ord, Show)
 
+instance Pretty ValDecl SyntaxKind where
+  tokens (BindLocalVal b) = tokens b
+
 instance Decl ValDecl where
   allowInCycles = const True
   declBindNames (BindLocalVal b) = [bindingName b]
@@ -169,6 +182,21 @@ data TyDecl =
     FieldDecl BindName TyExpr
   | Constraint TyExpr TyCompOp TyExpr
   deriving (Eq, Ord, Show)
+
+instance Pretty TyDecl SyntaxKind where
+  tokens (FieldDecl name ty) = do
+    tokens name
+    t1 SKOper ":"
+    tokens ty
+    t1 SKSep ";"
+  tokens (Constraint a op b) = do
+    tt "with"
+    tokens a
+    t1 SKOper $ case op of
+      OpSubTy -> "<:"
+      OpSuperTy -> ">:"
+      OpEqualTy -> ":"
+    tokens b
 
 instance Decl TyDecl where
   allowInCycles = const False
@@ -202,6 +230,18 @@ data ValPrim =
   | EChar Char
   deriving (Eq, Ord, Show)
 
+instance Pretty ValPrim SyntaxKind where
+  tokens (LamCase _) = undefined
+  tokens (Case _ _) = undefined
+  tokens (Do es) = tt "do" >> tellBrackets "{" "}" (mapM_ tokens es)
+  tokens (EInt n) = tt $ show n
+  tokens (EFloat (a :% b)) = tellBrackets "(" ")" $ do
+    tt $ show a
+    t1 SKOper "/"
+    tt $ show b
+  tokens (EString _) = undefined
+  tokens (EChar _) = undefined
+
 data CaseClause = CaseClause Pat ValExpr
   deriving (Eq, Ord, Show)
 
@@ -210,6 +250,9 @@ data DoElem =
   | DoBind Pat ValExpr
   | DoExpr ValExpr
   deriving (Eq, Ord, Show)
+
+instance Pretty DoElem SyntaxKind where
+  tokens = undefined
 
 data Pat =
     PatParams [Pat]
@@ -223,6 +266,9 @@ data Pat =
 
 data TyPrim = TyFn | TyAuto | TyEmpty
   deriving (Eq, Ord, Show)
+
+instance Pretty TyPrim SyntaxKind where
+  tokens = undefined
 
 type ModExpr = Expr ModDecl No
 

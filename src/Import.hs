@@ -17,6 +17,7 @@ module Import
   , module Data.Ratio
   , module Data.Set
   , module Data.Traversable
+  , module GHC.Real
   , module Prelude
   ) where
 
@@ -37,5 +38,6 @@ import Data.Ord
 import Data.Ratio
 import Data.Set (Set())
 import Data.Traversable
+import GHC.Real
 import Prelude hiding ((.), id, mapM, sequence)
 
