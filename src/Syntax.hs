@@ -160,7 +160,25 @@ data SigDecl =
   deriving (Eq, Ord, Show)
 
 instance Pretty SigDecl SyntaxKind where
-  tokens = undefined
+  tokens (SigVal name ty) = do
+    tt "val"
+    tokens name
+    t1 SKOper ":"
+    tokens ty
+    t1 SKSep ";"
+  tokens (SigTy name bound) = do
+    tt "type"
+    tokens name
+    whenJust bound $ \(TyBound op ty) -> do
+      tokens op
+      tokens ty
+    t1 SKSep ";"
+  tokens (SigMod name ty) = do
+    tt "module"
+    tokens name
+    t1 SKOper ":"
+    tokens ty
+    t1 SKSep ";"
 
 instance Decl SigDecl where
   allowInCycles = const False
@@ -183,6 +201,12 @@ data TyDecl =
   | Constraint TyExpr TyCompOp TyExpr
   deriving (Eq, Ord, Show)
 
+instance Pretty TyCompOp SyntaxKind where
+  tokens op = t1 SKOper $ case op of
+    OpSubTy -> "<:"
+    OpSuperTy -> ">:"
+    OpEqualTy -> ":"
+
 instance Pretty TyDecl SyntaxKind where
   tokens (FieldDecl name ty) = do
     tokens name
@@ -192,10 +216,7 @@ instance Pretty TyDecl SyntaxKind where
   tokens (Constraint a op b) = do
     tt "with"
     tokens a
-    t1 SKOper $ case op of
-      OpSubTy -> "<:"
-      OpSuperTy -> ">:"
-      OpEqualTy -> ":"
+    tokens op
     tokens b
 
 instance Decl TyDecl where
@@ -218,7 +239,27 @@ data Expr d e =
 instance
   (Pretty d SyntaxKind, Pretty e SyntaxKind)
   => Pretty (Expr d e) SyntaxKind where
-  tokens = undefined
+  tokens (Lam _ _) = tellBrackets "(" ")" $ do
+    undefined
+  tokens (App e es) = tokens e >> mapM_ tokens es
+  tokens (Record ds) = do
+    tt "rec"
+    tellBrackets "{" "}" $ mapM_ tokens ds
+  tokens (Ref name) = tokens name
+  -- TODO it would be useful for these refs to keep the string names
+  tokens (UniqueRef n) = tt $ "_?_" ++ show n
+  tokens (Member e name) = do
+    tokens e
+    t1 SKOper "."
+    tokens name
+  tokens (OpChain _ _) = undefined
+  tokens (Let ds e) = tellBrackets "(" ")" $ do
+    tt "let"
+    tellBrackets "{" "}" $ mapM_ tokens ds
+    tt "in"
+    tokens e
+  tokens (Prim e) = tokens e
+  tokens ToDo = t1 SKOper "?"
 
 data ValPrim =
     LamCase [CaseClause]
@@ -252,7 +293,18 @@ data DoElem =
   deriving (Eq, Ord, Show)
 
 instance Pretty DoElem SyntaxKind where
-  tokens = undefined
+  tokens (DoLet ds) = do
+    tt "let"
+    tellBrackets "{" "}" (mapM_ tokens ds)
+    t1 SKSep ";"
+  tokens (DoBind pat expr) = do
+    tokens pat
+    t1 SKOper "<-"
+    tokens expr
+    t1 SKSep ";"
+  tokens (DoExpr expr) = do
+    tokens expr
+    t1 SKSep ";"
 
 data Pat =
     PatParams [Pat]
@@ -264,11 +316,17 @@ data Pat =
   | PatIgnore
   deriving (Eq, Ord, Show)
 
+instance Pretty Pat SyntaxKind where
+  tokens = undefined
+
 data TyPrim = TyFn | TyAuto | TyEmpty
   deriving (Eq, Ord, Show)
 
 instance Pretty TyPrim SyntaxKind where
-  tokens = undefined
+  -- TODO figure out how to get the arrows to appear infix
+  tokens TyFn = tt "(->)"
+  tokens TyAuto = t1 SKOper "*"
+  tokens TyEmpty = tt "(#?EMPTY?#)"
 
 type ModExpr = Expr ModDecl No
 
