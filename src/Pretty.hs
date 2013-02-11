@@ -1,12 +1,11 @@
 
-{-# LANGUAGE UndecidableInstances #-}
 module Pretty where
 
 import Common
 import Pretty.Internal
 
 class (TokenKind b) => Pretty a b | a -> b where
-  tokens :: a -> [Token b]
+  tokens :: a -> Writer [Token b] ()
 
 class TokenKind a where
   space :: a -> a -> Bool
@@ -15,7 +14,7 @@ data Token a = Word String a | LineBreak Int | Depth Int
   deriving (Eq, Ord)
 
 pretty :: (Pretty a b) => a -> String
-pretty = format . prepare . tokens
+pretty = format . prepare . execWriter . tokens
 
 prepare :: (TokenKind a) => [Token a] -> [SToken]
 prepare [] = []
@@ -53,38 +52,33 @@ spaced a b = case space a b of
   False -> id
 
 format :: [SToken] -> String
-format = evalState mShow . initPrettyState
+format = execWriter . evalStateT mShow . initPrettyState
 
-type M = State PrettyState
+type M = StateT PrettyState (Writer String)
 
-mShow :: M String
-mShow = undefined
+isLineBreak (SLineBreak _) = True
+isLineBreak _ = False
 
-type LineResult = M (Maybe [String])
+-- TODO optimize?
+break1 pred xs = let (as, bs) = break pred xs in (as ++ take 1 bs, drop 1 bs)
 
-type LineStrategy = String -> LineResult
+mShow :: M ()
+mShow = do
+  ts <- access sInput
+  case ts of
+    [] -> return ()
+    _  -> do
+      let (line, ts') = break1 isLineBreak ts
+      -- TODO apply strategies to line
+      mapM_ naiveShow line
+      _ <- sInput ~= ts'
+      mShow
 
-strategies = [simpleStrategy]
-
-bestResult = flip mapM strategies . flip ($) >=> return . foldr mplus Nothing
-
-simpleStrategy :: LineStrategy
-simpleStrategy = return . Just . (: [])
-
-{--
- - Find all the tokens up to the next hard line break. If they don't fit on one line,
- - apply various line-breaking strategies to split them into multiple lines. Each
- - strategy should be given the tokens that need splitting (with the precomputed
- - intervening whitespace), as well as the actual available line length, taking into
- - account the ambient indentation. Each strategy produces a result:
- -
- -   data SplitResult = Success [Line] Score | Failure
- -
- - There may be some strategies that can be applied at a variety of different
- - syntactic depths, which is fine. Just pick the result with the highest score.
- -
- - There could also be some scoring threshold above which we just stop trying
- - alternatives. This especially makes sense if we can sort the strategies into a
- - preferred order.
- -}
+naiveShow :: SToken -> M ()
+naiveShow (SLineBreak indent) = do
+  _ <- sIndent %= (+ indent)
+  tell "\n"
+naiveShow (SDepth depth) = void $ sDepth %= (+ depth)
+naiveShow (SWord xs) = tell xs
+naiveShow SSpace = tell " "
 

@@ -6,6 +6,7 @@ module Import
   , module Control.Monad.Identity
   , module Control.Monad.Reader
   , module Control.Monad.State
+  , module Control.Monad.Writer
   , module Data.Char
   , module Data.Either
   , module Data.Lens
@@ -25,6 +26,7 @@ import Control.Monad hiding (forM, mapM, sequence)
 import Control.Monad.Identity hiding (forM, mapM, sequence)
 import Control.Monad.Reader hiding (forM, mapM, sequence)
 import Control.Monad.State hiding (forM, mapM, sequence)
+import Control.Monad.Writer hiding (forM, mapM, sequence)
 import Data.Char
 import Data.Either
 import Data.Lens

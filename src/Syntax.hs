@@ -16,7 +16,7 @@ instance Show No where
   show _ = "()"
 
 instance Pretty No SyntaxKind where
-  tokens _ = []
+  tokens _ = return ()
 
 data SyntaxKind = SKText | SKOper | SKSep | SKLBracket | SKRBracket
   deriving (Eq, Ord, Show)
@@ -80,8 +80,54 @@ data ModDecl =
   | Infix InfixAssoc Integer [BindName]
   deriving (Eq, Ord, Show)
 
+nameIsText :: String -> Bool
+nameIsText [] = error "Empty name in nameIsText"
+nameIsText (x : _) = x == '_' || isAlpha x
+
+instance Pretty BindName SyntaxKind where
+  tokens b = case b of
+    BindName xs -> f xs
+    UniqueName n xs -> f $ xs ++ "_" ++ show n
+    where
+      f xs = tell [Word xs $ if nameIsText xs then SKText else SKOper]
+
+t1 :: (MonadWriter [Token SyntaxKind] m) => SyntaxKind -> String -> m ()
+t1 sk xs = tell [Word xs sk]
+
+tt :: (MonadWriter [Token SyntaxKind] m) => String -> m ()
+tt = t1 SKText
+
+tellBrackets :: (MonadWriter [Token SyntaxKind] m) => String -> String -> m () -> m ()
+tellBrackets lb rb m = do
+  t1 SKLBracket lb
+  m
+  t1 SKRBracket rb
+
 instance Pretty ModDecl SyntaxKind where
-  tokens = undefined
+  tokens (BindMod b) = tt "module" >> tokens b
+  tokens (BindSig b) = tt "sig" >> tokens b
+  tokens (BindVal b) = tt "val" >> tokens b
+  tokens (BindTy b) = tt "type" >> tokens b
+  tokens (Data mode name parent ty kids) = do
+    tt "data"
+    when (mode == DataOpen) $ tt "open"
+    tokens name
+    whenJust parent $ \parent -> t1 SKOper "<:" >> tokens parent
+    when (not $ ty == Prim TyEmpty) $ do
+      tt "is"
+      tokens ty
+    case kids of
+      [] -> t1 SKSep ";"
+      _  -> tellBrackets "{" "}" $ mapM_ tokens kids
+  tokens (Infix assoc prec bs) = do
+    tt "infix"
+    case assoc of
+      InfixLeft -> tt "left"
+      InfixRight -> tt "right"
+      InfixNone -> return ()
+    tt $ show prec
+    mapM_ tokens bs
+    t1 SKSep ";"
 
 instance Decl ModDecl where
   allowInCycles (BindVal _) = True

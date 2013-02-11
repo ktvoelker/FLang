@@ -18,6 +18,11 @@ Write a pretty-printer back to real syntax
   Note: dealing with operators correctly requires knowing the precedence of each
   operator reference, which requires the resolution phase to be implemented.
 
+It would be super cool to have a reversible parsing framework, where the parse rules
+are built up so that they can be used as a pretty-printer as well as a parser - the
+tricky part here is that whenever the pretty-printer hits optional whitespace, it needs
+a way to decide what whitespace to actually write
+
 Improve the ECirc errors in the sorter
 
 Get rid of the complicated LHS phase in the renamer, and just use declBindNames

@@ -6,6 +6,9 @@ import Import
 readMaybe :: (Read a) => String -> Maybe a
 readMaybe = fmap fst . listToMaybe . reads
 
+whenJust :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
+whenJust x f = maybe (return ()) f x
+
 mapFst :: (a -> c) -> (a, b) -> (c, b)
 mapFst f (a, b) = (f a, b)
 
