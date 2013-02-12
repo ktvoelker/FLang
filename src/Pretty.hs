@@ -31,11 +31,11 @@ prepare (Word xs _ : LineBreak n : ts) =
 prepare (t@(Word _ _) : ts@(Depth _ : Depth _ : _)) =
   prepare $ t : depthCollapse ts
 -- Word Depth Word ...
-prepare (Word xs a : Depth n : Word ys b : ts) =
-  SWord xs : spaced a b (SDepth n : SWord ys : prepare ts)
+prepare (Word xs a : Depth n : ts@(Word _ b : _)) =
+  SWord xs : spaced a b (SDepth n : prepare ts)
 -- Word Word ...
-prepare (Word xs a : Word ys b : ts) =
-  SWord xs : spaced a b (SWord ys : prepare ts)
+prepare (Word xs a : ts@(Word _ b : _)) =
+  SWord xs : spaced a b (prepare ts)
 -- Word Depth ...
 prepare (Word xs _ : Depth n : ts) =
   SWord xs : SDepth n : prepare ts

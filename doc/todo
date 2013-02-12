@@ -4,9 +4,8 @@ TO-DO
 
 Pretty-printer
 
-  * Fix existing bugs
   * Add appropriate newlines, indentation numbers, and depth numbers
-  * Implement smart breaking of long lines (this can wait)
+  * Implement smart breaking of long lines
   * Handle operator precedence correctly
   * Clean up the output to be fully ideal
 

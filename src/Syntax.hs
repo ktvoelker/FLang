@@ -1,8 +1,45 @@
 
-module Syntax where
+module Syntax (
+  -- * Common types
+    No(), Namespace(..), BindName(..), namespace, Binder(..), Binding(..)
+  -- * Generic expressions and declarations
+  , Expr(..), Decl(..)
+  -- * Sigs
+  , SigDecl(..), SigExpr, SigBinding
+  -- * Modules
+  , ModDecl(..), ModExpr, ModBinding, OpenQual(..), DataMode(..), InfixAssoc(..)
+  -- * Types
+  , TyPrim(..), TyBound(..), TyCompOp(..), TyDecl(..), TyExpr, TyBinding
+  -- * Values
+  , ValPrim(..), ValDecl(..), ValExpr, ValBinding, CaseClause(..), DoElem(..), Pat(..)
+  -- * Type aliases
+  , Program
+  -- * Pretty-printing
+  , SyntaxKind()
+  ) where
 
 import Common
 import Pretty
+
+nameIsText :: String -> Bool
+nameIsText [] = error "Empty name in nameIsText"
+nameIsText (x : _) = x == '_' || isAlpha x
+
+t1 :: (MonadWriter [Token SyntaxKind] m) => SyntaxKind -> String -> m ()
+t1 sk xs = tell [Word xs sk]
+
+colon = t1 SKColon ":"
+
+semi = t1 SKSep ";"
+
+tt :: (MonadWriter [Token SyntaxKind] m) => String -> m ()
+tt = t1 SKText
+
+tellBrackets :: (MonadWriter [Token SyntaxKind] m) => String -> String -> m () -> m ()
+tellBrackets lb rb m = do
+  t1 SKLBracket lb
+  m
+  t1 SKRBracket rb
 
 data No
 
@@ -18,13 +55,14 @@ instance Show No where
 instance Pretty No SyntaxKind where
   tokens _ = return ()
 
-data SyntaxKind = SKText | SKOper | SKSep | SKLBracket | SKRBracket
+data SyntaxKind = SKText | SKOper | SKSep | SKLBracket | SKRBracket | SKColon
   deriving (Eq, Ord, Show)
 
 instance TokenKind SyntaxKind where
   space _ SKSep = False
   space SKLBracket _ = False
   space _ SKRBracket = False
+  space _ SKColon = False
   space _ _ = True
 
 type Program = ModExpr
@@ -57,7 +95,7 @@ instance Pretty Binder SyntaxKind where
   tokens (Binder name Nothing) = tokens name
   tokens (Binder name (Just ty)) = tellBrackets "(" ")" $ do
     tokens name
-    t1 SKOper ":"
+    colon
     tokens ty
 
 data Binding e = Binding Binder e
@@ -66,7 +104,7 @@ data Binding e = Binding Binder e
 instance (Pretty e SyntaxKind) => Pretty (Binding e) SyntaxKind where
   tokens (Binding (Binder name ty) rhs) = do
     tokens name
-    whenJust ty $ \ty -> t1 SKOper ":" >> tokens ty
+    whenJust ty $ \ty -> colon >> tokens ty
     tt "is"
     tokens rhs
 
@@ -94,28 +132,15 @@ data ModDecl =
   | Infix InfixAssoc Integer [BindName]
   deriving (Eq, Ord, Show)
 
-nameIsText :: String -> Bool
-nameIsText [] = error "Empty name in nameIsText"
-nameIsText (x : _) = x == '_' || isAlpha x
-
 instance Pretty BindName SyntaxKind where
   tokens b = case b of
     BindName xs -> f xs
     UniqueName n xs -> f $ xs ++ "_" ++ show n
     where
-      f xs = tell [Word xs $ if nameIsText xs then SKText else SKOper]
-
-t1 :: (MonadWriter [Token SyntaxKind] m) => SyntaxKind -> String -> m ()
-t1 sk xs = tell [Word xs sk]
-
-tt :: (MonadWriter [Token SyntaxKind] m) => String -> m ()
-tt = t1 SKText
-
-tellBrackets :: (MonadWriter [Token SyntaxKind] m) => String -> String -> m () -> m ()
-tellBrackets lb rb m = do
-  t1 SKLBracket lb
-  m
-  t1 SKRBracket rb
+      f xs =
+        if nameIsText xs
+        then tell [Word xs SKText]
+        else tell [Word ("(" ++ xs ++ ")") SKOper]
 
 instance Pretty ModDecl SyntaxKind where
   tokens (BindMod b) = tt "module" >> tokens b
@@ -131,7 +156,7 @@ instance Pretty ModDecl SyntaxKind where
       tt "is"
       tokens ty
     case kids of
-      [] -> t1 SKSep ";"
+      [] -> semi
       _  -> tellBrackets "{" "}" $ mapM_ tokens kids
   tokens (Infix assoc prec bs) = do
     tt "infix"
@@ -141,7 +166,7 @@ instance Pretty ModDecl SyntaxKind where
       InfixNone -> return ()
     tt $ show prec
     mapM_ tokens bs
-    t1 SKSep ";"
+    semi
 
 instance Decl ModDecl where
   allowInCycles (BindVal _) = True
@@ -170,22 +195,22 @@ instance Pretty SigDecl SyntaxKind where
   tokens (SigVal name ty) = do
     tt "val"
     tokens name
-    t1 SKOper ":"
+    colon
     tokens ty
-    t1 SKSep ";"
+    semi
   tokens (SigTy name bound) = do
     tt "type"
     tokens name
     whenJust bound $ \(TyBound op ty) -> do
       tokens op
       tokens ty
-    t1 SKSep ";"
+    semi
   tokens (SigMod name ty) = do
     tt "module"
     tokens name
-    t1 SKOper ":"
+    colon
     tokens ty
-    t1 SKSep ";"
+    semi
 
 instance Decl SigDecl where
   allowInCycles = const False
@@ -217,9 +242,9 @@ instance Pretty TyCompOp SyntaxKind where
 instance Pretty TyDecl SyntaxKind where
   tokens (FieldDecl name ty) = do
     tokens name
-    t1 SKOper ":"
+    colon
     tokens ty
-    t1 SKSep ";"
+    semi
   tokens (Constraint a op b) = do
     tt "with"
     tokens a
@@ -315,7 +340,7 @@ instance Pretty CaseClause SyntaxKind where
     tokens pat
     tt "then"
     tokens expr
-    t1 SKOper ";"
+    semi
 
 data DoElem =
     DoLet [ValDecl]
@@ -327,15 +352,15 @@ instance Pretty DoElem SyntaxKind where
   tokens (DoLet ds) = do
     tt "let"
     tellBrackets "{" "}" (mapM_ tokens ds)
-    t1 SKSep ";"
+    semi
   tokens (DoBind pat expr) = do
     tokens pat
     t1 SKOper "<-"
     tokens expr
-    t1 SKSep ";"
+    semi
   tokens (DoExpr expr) = do
     tokens expr
-    t1 SKSep ";"
+    semi
 
 data Pat =
     PatParams [Pat]
