@@ -2,6 +2,7 @@
 module Syntax (
   -- * Common types
     No(), Namespace(..), BindName(..), namespace, Binder(..), Binding(..)
+  , HasBindNames(..)
   -- * Generic expressions and declarations
   , Expr(..), Decl(..)
   -- * Sigs
@@ -70,6 +71,9 @@ type Program = ModExpr
 data BindName = BindName String | UniqueName Integer String
   deriving (Eq, Ord, Show)
 
+instance HasBindNames BindName where
+  bindNames name = [name]
+
 data Namespace = NsTys | NsValues
   deriving (Eq, Ord, Show)
 
@@ -91,6 +95,9 @@ data Binder =
   , binderTy   :: Maybe TyExpr
   } deriving (Eq, Ord, Show)
 
+instance HasBindNames Binder where
+  bindNames b = [binderName b]
+
 instance Pretty Binder SyntaxKind where
   tokens (Binder name Nothing) = tokens name
   tokens (Binder name (Just ty)) = tellBrackets "(" ")" $ do
@@ -100,6 +107,9 @@ instance Pretty Binder SyntaxKind where
 
 data Binding e = Binding Binder e
   deriving (Eq, Ord, Show)
+
+instance HasBindNames (Binding e) where
+  bindNames b = [bindingName b]
 
 instance (Pretty e SyntaxKind) => Pretty (Binding e) SyntaxKind where
   tokens (Binding (Binder name ty) rhs) = do
@@ -119,9 +129,11 @@ type ValBinding = Binding ValExpr
 
 type TyBinding = Binding TyExpr
 
-class Decl a where
+class HasBindNames a where
+  bindNames :: a -> [BindName]
+
+class (HasBindNames a) => Decl a where
   allowInCycles :: a -> Bool
-  declBindNames :: a -> [BindName]
 
 data ModDecl =
     BindMod ModBinding
@@ -172,12 +184,14 @@ instance Decl ModDecl where
   allowInCycles (BindVal _) = True
   allowInCycles (Data _ _ _ _ _) = True
   allowInCycles _ = False
-  declBindNames (BindMod b) = [bindingName b]
-  declBindNames (BindSig b) = [bindingName b]
-  declBindNames (BindVal b) = [bindingName b]
-  declBindNames (BindTy b) = [bindingName b]
-  declBindNames (Data _ n _ _ ds) = n : concatMap declBindNames ds
-  declBindNames (Infix _ _ _) = []
+
+instance HasBindNames ModDecl where
+  bindNames (BindMod b) = [bindingName b]
+  bindNames (BindSig b) = [bindingName b]
+  bindNames (BindVal b) = [bindingName b]
+  bindNames (BindTy b) = [bindingName b]
+  bindNames (Data _ n _ _ ds) = n : concatMap bindNames ds
+  bindNames (Infix _ _ _) = []
 
 data TyBound = TyBound TyCompOp TyExpr
   deriving (Eq, Ord, Show)
@@ -214,9 +228,11 @@ instance Pretty SigDecl SyntaxKind where
 
 instance Decl SigDecl where
   allowInCycles = const False
-  declBindNames (SigVal n _) = [n]
-  declBindNames (SigTy n _) = [n]
-  declBindNames (SigMod n _) = [n]
+
+instance HasBindNames SigDecl where
+  bindNames (SigVal n _) = [n]
+  bindNames (SigTy n _) = [n]
+  bindNames (SigMod n _) = [n]
 
 data ValDecl = BindLocalVal ValBinding
   deriving (Eq, Ord, Show)
@@ -226,7 +242,9 @@ instance Pretty ValDecl SyntaxKind where
 
 instance Decl ValDecl where
   allowInCycles = const True
-  declBindNames (BindLocalVal b) = [bindingName b]
+
+instance HasBindNames ValDecl where
+  bindNames (BindLocalVal b) = [bindingName b]
 
 data TyDecl =
     FieldDecl BindName TyExpr
@@ -253,7 +271,9 @@ instance Pretty TyDecl SyntaxKind where
 
 instance Decl TyDecl where
   allowInCycles = const False
-  declBindNames = const []
+
+instance HasBindNames TyDecl where
+  bindNames = const []
 
 data Expr d e =
     Lam [Binder] (Expr d e)
@@ -382,6 +402,12 @@ instance Pretty Pat SyntaxKind where
   tokens (PatString xs) = tokens $ EString xs
   tokens (PatChar x) = tokens $ EChar x
   tokens PatIgnore = tt "_"
+
+instance HasBindNames Pat where
+  bindNames (PatParams ps) = ps >>= bindNames
+  bindNames (PatBind n) = [n]
+  bindNames (PatApp _ ps) = ps >>= bindNames
+  bindNames _ = []
 
 data TyPrim = TyFn | TyAuto | TyEmpty
   deriving (Eq, Ord, Show)

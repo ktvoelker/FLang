@@ -22,11 +22,17 @@ instance Pretty Global SyntaxKind where
 
 data Env =
   Env
-  { _ePath   :: Maybe [BindName]
-  , _eLocals :: Map BindName Integer
+  { _ePath  :: Maybe [BindName]
+  , _eScope :: Map BindName Integer
+  , _eBinds :: Map BindName Integer
   } deriving (Eq, Ord, Show)
 
-emptyEnv = Env (Just []) Map.empty
+emptyEnv :: Env
+emptyEnv = Env (Just []) Map.empty Map.empty
+
+withBindsInScope :: (MonadReader Env m) => m a -> m a
+withBindsInScope =
+  local $ \env -> env { _eScope = Map.union (_eBinds env) (_eScope env) }
 
 makeLenses [''Global, ''Env]
 

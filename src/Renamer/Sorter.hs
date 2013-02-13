@@ -47,7 +47,7 @@ newtype Key = Key Integer deriving (Eq, Ord, Show)
 
 -- TODO: we should be using richer types so the impossible is known to be so
 bindKey :: (Decl a) => a -> Key
-bindKey = Key . fromJust . listToMaybe . sort . map f . declBindNames
+bindKey = Key . fromJust . listToMaybe . sort . map f . bindNames
   where
     f (UniqueName n _) = n
     f _ = error "Impossible!"

@@ -2,23 +2,18 @@
 TO-DO
 =====
 
+Test the renamer changes
+
+Improve the ECirc errors in the sorter
+
+Consider requiring a special symbol to be prefixed onto any global Ref
+
 Pretty-printer
 
   * Add appropriate newlines, indentation numbers, and depth numbers
   * Implement smart breaking of long lines
   * Handle operator precedence correctly
   * Clean up the output to be fully ideal
-
-Improve the ECirc errors in the sorter
-
-Get rid of the complicated LHS phase in the renamer, and just use declBindNames
-
-  Instead, just allocate uniques for all the BindNames up front by finding them
-  all with this function; then, with the necessary mappings added to the scope,
-  traverse the AST, replacing both the BindNames that perform binding and those
-  that just appear in Refs in the same pass
-
-Consider requiring a special symbol to be prefixed onto any global Ref
 
 Add location information to the syntax tree via an L type like in GHC
 

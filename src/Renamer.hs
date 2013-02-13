@@ -23,16 +23,6 @@ rename p =
       lift2 getAccum >>= lift3 . report . EInternal . show
       return result
 
-type MRec = StateT (Env, Global) FM
-
-makeEnv :: MRec a -> M (a, Env)
-makeEnv m = do
-  env   <- ask
-  state <- get
-  (x, (env', state')) <- lift3 . runStateT m $ (env, state)
-  put state'
-  return (x, env')
-
 allocUnique :: (MonadState Global m) => m Integer
 allocUnique = gNextUnique %= (+ 1)
 
@@ -40,125 +30,107 @@ insertRef :: (Monad m) => Integer -> AR m ()
 insertRef n = getAccum >>= putAccum . Set.insert n
 
 class (Decl a, Show a) => RenameDecl a where
-  renameLHS   :: a -> MRec a
-  renameRHS   :: a -> M a
+  renameDecl :: a -> M a
 
 class RenamePrim a where
   renamePrim :: a -> M a
 
 instance RenameDecl ModDecl where
-  -- LHS
-  renameLHS (BindMod b) = BindMod <$> renameBindingLHS b
-  renameLHS (BindSig b) = BindSig <$> renameBindingLHS b
-  renameLHS (BindVal b) = BindVal <$> renameBindingLHS b
-  renameLHS (BindTy b) = BindTy <$> renameBindingLHS b
-  renameLHS (Data m n p t ds) = do
-    ds' <- mapM renameLHS ds
-    n'  <- renameNameLHS n
-    return $ Data m n' p t ds'
-  renameLHS i@(Infix _ _ _) = return i
-  -- RHS
-  renameRHS (BindMod b) = BindMod <$> renameBindingRHS b
-  renameRHS (BindSig b) = BindSig <$> renameBindingRHS b
-  renameRHS (BindVal b) = BindVal <$> renameBindingRHS b
-  renameRHS (BindTy b) = BindTy <$> renameBindingRHS b
-  renameRHS (Data m n p t ds) = do
+  renameDecl (BindMod b) = BindMod <$> renameBinding b
+  renameDecl (BindSig b) = BindSig <$> renameBinding b
+  renameDecl (BindVal b) = BindVal <$> renameBinding b
+  renameDecl (BindTy b) = BindTy <$> renameBinding b
+  renameDecl (Data m n p t ds) = do
     p'  <- maybe (return Nothing) (fmap Just . renameExpr) p
     t'  <- renameExpr t
-    ds' <- mapM renameRHS ds
+    ds' <- mapM renameDecl ds
     return $ Data m n p' t' ds'
-  renameRHS (Infix a p ns) = (Infix a p) <$> mapM renameName ns
+  renameDecl (Infix a p ns) = (Infix a p) <$> mapM renameNameRef ns
 
 instance RenameDecl SigDecl where
-  renameLHS (SigVal n e) = SigVal <$> renameNameLHS n <*> pure e
-  renameLHS (SigTy n t) = SigTy <$> renameNameLHS n <*> pure t
-  renameLHS (SigMod n e) = SigMod <$> renameNameLHS n <*> pure e
-  renameRHS (SigVal n e) = do
+  renameDecl (SigVal n e) = do
     SigVal n <$> renameExpr e
-  renameRHS t@(SigTy _ Nothing) = return t
-  renameRHS (SigTy n (Just (TyBound o e))) = do
+  renameDecl t@(SigTy _ Nothing) = return t
+  renameDecl (SigTy n (Just (TyBound o e))) = do
     SigTy n . Just . TyBound o <$> renameExpr e
-  renameRHS (SigMod n e) = do
+  renameDecl (SigMod n e) = do
     SigMod n <$> renameExpr e
 
 instance RenameDecl ValDecl where
-  renameLHS (BindLocalVal b) = BindLocalVal <$> renameBindingLHS b
-  renameRHS (BindLocalVal b) = BindLocalVal <$> renameBindingRHS b
+  renameDecl (BindLocalVal b) = BindLocalVal <$> renameBinding b
 
 instance RenameDecl TyDecl where
-  renameLHS = return
-  renameRHS (FieldDecl n e) = FieldDecl n <$> renameExpr e
-  renameRHS (Constraint a o b) = Constraint <$> renameExpr a <*> pure o <*> renameExpr b
+  renameDecl (FieldDecl n e) = FieldDecl n <$> renameExpr e
+  renameDecl (Constraint a o b) =
+    Constraint <$> renameExpr a <*> pure o <*> renameExpr b
 
-renameNameLHS :: BindName -> MRec BindName
-renameNameLHS n@(UniqueName _ _) = return n
-renameNameLHS n@(BindName xs) = do
-  n' <- focus sndLens allocUnique
-  _  <- eLocals . fstLens %= Map.insert n n'
-  return $ UniqueName n' xs
-
-renameBindingLHS
-  :: (RenameDecl d, RenamePrim e)
-  => Binding (Expr d e)
-  -> MRec (Binding (Expr d e))
-renameBindingLHS (Binding (Binder n t) e) = do
-  n' <- renameNameLHS n
-  return $ Binding (Binder n' t) e
-
-renameBindingRHS
+renameBinding
   :: (RenameDecl d, RenamePrim e) => Binding (Expr d e) -> M (Binding (Expr d e))
-renameBindingRHS (Binding (Binder n t) e) = do
+renameBinding (Binding (Binder n t) e) = do
   t' <- maybe (return Nothing) (fmap Just . renameExpr) t
   Binding (Binder n t') <$> renameExpr e
 
-renameName :: BindName -> M BindName
-renameName n@(BindName xs) = do
-  z <- Map.lookup n <$> asks _eLocals
+renameNameFrom :: Lens Env (Map BindName Integer) -> BindName -> M BindName
+renameNameFrom field n@(BindName xs) = do
+  env <- ask
+  let z = Map.lookup n $ env ^. field
   case z of
     Nothing -> do
       lift3 . report . EUnbound $ xs
       return n
-    Just z -> do
-      lift2 . insertRef $ z
-      return $ UniqueName z xs
-renameName n@(UniqueName z _) = do
+    Just z -> return $ UniqueName z xs
+renameNameFrom _ n@(UniqueName _ _) = return n
+
+renameNameRef :: BindName -> M BindName
+renameNameRef name = do
+  name@(UniqueName z _) <- renameNameFrom eScope name
   lift2 . insertRef $ z
-  return n
+  return name
 
-renameBinders :: [Binder] -> M ([Binder], Env)
-renameBinders = mapM renameBinderTy >=> makeEnv . mapM renameBinderName
+renameNameBind :: BindName -> M BindName
+renameNameBind = renameNameFrom eBinds
 
-renameBinderTy :: Binder -> M Binder
-renameBinderTy (Binder name ty) = Binder name <$> mapM renameExpr ty
+renameBinders :: [Binder] -> M [Binder]
+renameBinders = mapM renameBinder
 
-renameBinderName :: Binder -> MRec Binder
-renameBinderName (Binder name ty) = Binder <$> renameNameLHS name <*> pure ty
+renameBinder :: Binder -> M Binder
+renameBinder (Binder name ty) = Binder <$> renameNameBind name <*> mapM renameExpr ty
 
-makeRecEnv :: (RenameDecl d) => [d] -> M ([d], Env)
-makeRecEnv = makeEnv . mapM renameLHS
+makeEnv :: (HasBindNames a) => Bool -> [a] -> M Env
+makeEnv inScope ds = do
+  env <- ask
+  newPairs <- mapM (\b -> (b, ) <$> allocUnique) $ ds >>= bindNames
+  let f = (^%= Map.union (Map.fromList newPairs))
+  return $ f eBinds (if inScope then f eScope env else env)
+
+makeRecEnv :: (HasBindNames a) => [a] -> M Env
+makeRecEnv = makeEnv True
+
+makeBindEnv :: (HasBindNames a) => [a] -> M Env
+makeBindEnv = makeEnv False
 
 renameSortDecls :: (RenameDecl d) => [d] -> M [d]
-renameSortDecls ds = mapM (branch . renameRHS) ds >>= lift3 . sortDecls
+renameSortDecls ds = mapM (branch . renameDecl) ds >>= lift3 . sortDecls
 
 renameExpr :: (RenameDecl d, RenamePrim e) => Expr d e -> M (Expr d e)
 renameExpr (Lam bs e) = do
-  (bs', env') <- renameBinders bs
-  Lam bs' <$> local (const env') (renameExpr e)
+  env' <- makeBindEnv bs
+  local (const env') $ Lam <$> renameBinders bs <*> withBindsInScope (renameExpr e)
 renameExpr (App f as) = App <$> renameExpr f <*> mapM renameExpr as
 renameExpr (Record ds) = do
-  (ds', env') <- makeRecEnv ds
-  Record <$> local (const env') (renameSortDecls ds')
-renameExpr (Ref n) = Ref <$> renameName n
+  env' <- makeRecEnv ds
+  Record <$> local (const env') (renameSortDecls ds)
+renameExpr (Ref n) = Ref <$> renameNameRef n
 renameExpr e@(UniqueRef _) = return e
 renameExpr (Member e n) = Member <$> renameExpr e <*> pure n
 renameExpr (OpChain e os) = OpChain <$> mapM renameExpr e <*> mapM f os
   where
     f (a, b) = (,) <$> renameExpr a <*> renameExpr b
 renameExpr (Let ds e) = do
-  (ds', env') <- makeRecEnv ds
-  ds'' <- local (const env') $ renameSortDecls ds'
+  env' <- makeRecEnv ds
+  ds' <- local (const env') $ renameSortDecls ds
   e' <- local (const env') $ renameExpr e
-  Let <$> pure ds'' <*> pure e'
+  Let <$> pure ds' <*> pure e'
 renameExpr (Prim p) = Prim <$> renamePrim p
 renameExpr ToDo = return ToDo
 
@@ -181,26 +153,21 @@ renameCaseClause (CaseClause p v) = do
   CaseClause p' <$> local (const env') (renameExpr v)
 
 renamePat :: Pat -> M (Pat, Env)
-renamePat = renamePatExprs >=> makeEnv . renamePatBinds
+renamePat pat = do
+  env' <- makeBindEnv [pat]
+  (, env') <$> local (const env') (renamePat' pat)
 
-renamePatExprs (PatParams ps) = PatParams <$> mapM renamePatExprs ps
-renamePatExprs (PatApp e ps) = PatApp <$> renameExpr e <*> mapM renamePatExprs ps
-renamePatExprs p = return p
-
-renamePatBinds (PatBind n) = PatBind <$> renameNameLHS n
-renamePatBinds (PatParams ps) = PatParams <$> mapM renamePatBinds ps
-renamePatBinds (PatApp e ps) = PatApp e <$> mapM renamePatBinds ps
-renamePatBinds lit = return lit
-
-getPatBinds (PatBind n) = [n]
-getPatBinds (PatParams ps) = ps >>= getPatBinds
-getPatBinds (PatApp _ ps) = ps >>= getPatBinds
-getPatBinds _ = []
+renamePat' :: Pat -> M Pat
+renamePat' (PatParams ps) = PatParams <$> mapM renamePat' ps
+renamePat' (PatApp e ps) = PatApp <$> renameExpr e <*> mapM renamePat' ps
+renamePat' (PatBind b) = PatBind <$> renameNameBind b
+renamePat' lit = return lit
 
 renameDo [] = return []
 renameDo (DoLet ds : xs) = do
-  (ds', env') <- makeRecEnv ds
-  (DoLet ds' :) <$> local (const env') (renameDo xs)
+  -- TODO we need to do renaming on the decls
+  env' <- makeRecEnv ds
+  (DoLet ds :) <$> local (const env') (renameDo xs)
 renameDo (DoBind p v : xs) = do
   (p', env') <- renamePat p
   (:) <$> (DoBind p' <$> renameExpr v) <*> local (const env') (renameDo xs)
