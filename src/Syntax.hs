@@ -333,7 +333,6 @@ data ValPrim =
 instance Pretty ValPrim SyntaxKind where
   tokens (LamCase cs) = do
     tt "fn"
-    tt "of"
     tellBrackets "{" "}" $ mapM_ tokens cs
   tokens (Case e cs) = do
     tt "case"

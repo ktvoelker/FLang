@@ -50,5 +50,5 @@ bindKey :: (Decl a) => a -> Key
 bindKey = Key . fromJust . listToMaybe . sort . map f . bindNames
   where
     f (UniqueName n _) = n
-    f _ = error "Impossible!"
+    f n = error $ "Impossible: " ++ show n
 

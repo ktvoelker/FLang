@@ -313,7 +313,7 @@ pat =
    - We have to backtrack if this fails because it might have consumed a
    - left parenthesis.
    --}
-  try (fmap PatBind bindName)
+  try patName
   <|>
   parens patApp
   <|>
@@ -326,6 +326,13 @@ patLit = tok "literal primitive pattern" $ \t -> case t of
   TString xs -> Just $ PatString xs
   TChar c -> Just $ PatChar c
   _ -> Nothing
+
+patName = do
+  ns <- bindName `sepEndBy1` kw "."
+  return $ case ns of
+    [] -> error "Impossible!"
+    [n] | namespace n == NsValues -> PatBind n
+    (n : ns) -> PatApp (foldl Member (Ref n) ns) []
 
 patApp = do
   ns <- bindName `sepEndBy1` kw "."

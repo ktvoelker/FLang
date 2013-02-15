@@ -2,8 +2,6 @@
 TO-DO
 =====
 
-Test the renamer changes
-
 Improve the ECirc errors in the sorter
 
 Consider requiring a special symbol to be prefixed onto any global Ref

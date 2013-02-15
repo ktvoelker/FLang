@@ -41,34 +41,36 @@ instance RenameDecl ModDecl where
   renameDecl (BindVal b) = BindVal <$> renameBinding b
   renameDecl (BindTy b) = BindTy <$> renameBinding b
   renameDecl (Data m n p t ds) = do
+    n'  <- renameNameBind n
     p'  <- maybe (return Nothing) (fmap Just . renameExpr) p
     t'  <- renameExpr t
     ds' <- mapM renameDecl ds
-    return $ Data m n p' t' ds'
-  renameDecl (Infix a p ns) = (Infix a p) <$> mapM renameNameRef ns
+    return $ Data m n' p' t' ds'
+  renameDecl (Infix a p ns) = Infix a p <$> mapM renameNameRef ns
 
 instance RenameDecl SigDecl where
-  renameDecl (SigVal n e) = do
-    SigVal n <$> renameExpr e
-  renameDecl t@(SigTy _ Nothing) = return t
-  renameDecl (SigTy n (Just (TyBound o e))) = do
-    SigTy n . Just . TyBound o <$> renameExpr e
-  renameDecl (SigMod n e) = do
-    SigMod n <$> renameExpr e
+  renameDecl (SigVal n e) = SigVal <$> renameNameBind n <*> renameExpr e
+  renameDecl (SigTy n ty) = SigTy <$> renameNameBind n <*> ty'
+    where
+      ty' = case ty of
+        Nothing -> pure Nothing
+        Just (TyBound o e) -> Just . TyBound o <$> renameExpr e
+  renameDecl (SigMod n e) = SigMod <$> renameNameBind n <*> renameExpr e
 
 instance RenameDecl ValDecl where
   renameDecl (BindLocalVal b) = BindLocalVal <$> renameBinding b
 
 instance RenameDecl TyDecl where
-  renameDecl (FieldDecl n e) = FieldDecl n <$> renameExpr e
+  renameDecl (FieldDecl n e) = FieldDecl <$> renameNameBind n <*> renameExpr e
   renameDecl (Constraint a o b) =
     Constraint <$> renameExpr a <*> pure o <*> renameExpr b
 
 renameBinding
   :: (RenameDecl d, RenamePrim e) => Binding (Expr d e) -> M (Binding (Expr d e))
 renameBinding (Binding (Binder n t) e) = do
+  n' <- renameNameBind n
   t' <- maybe (return Nothing) (fmap Just . renameExpr) t
-  Binding (Binder n t') <$> renameExpr e
+  Binding (Binder n' t') <$> renameExpr e
 
 renameNameFrom :: Lens Env (Map BindName Integer) -> BindName -> M BindName
 renameNameFrom field n@(BindName xs) = do
@@ -82,10 +84,12 @@ renameNameFrom field n@(BindName xs) = do
 renameNameFrom _ n@(UniqueName _ _) = return n
 
 renameNameRef :: BindName -> M BindName
-renameNameRef name = do
-  name@(UniqueName z _) <- renameNameFrom eScope name
-  lift2 . insertRef $ z
-  return name
+renameNameRef n = do
+  n' <- renameNameFrom eScope n
+  case n' of
+    UniqueName z _ -> lift2 . insertRef $ z
+    _ -> return ()
+  return n'
 
 renameNameBind :: BindName -> M BindName
 renameNameBind = renameNameFrom eBinds
@@ -150,7 +154,7 @@ instance RenamePrim TyPrim where
 
 renameCaseClause (CaseClause p v) = do
   (p', env') <- renamePat p
-  CaseClause p' <$> local (const env') (renameExpr v)
+  CaseClause p' <$> local (const env') (withBindsInScope $ renameExpr v)
 
 renamePat :: Pat -> M (Pat, Env)
 renamePat pat = do
