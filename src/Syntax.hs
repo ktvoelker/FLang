@@ -18,7 +18,7 @@ module Syntax (
   -- * Pretty-printing
   , SyntaxKind()
   -- * Locations
-  , L(..), MonadLoc(..), useLoc, keepLoc, whenJustL
+  , L(..), LocEnv(..), MonadLoc(..), useLoc, keepLoc, whenJustL
   ) where
 
 import Common
@@ -28,9 +28,16 @@ import Text.Parsec (SourcePos())
 
 data L a = L { lVal :: a, lLoc :: SourcePos } deriving (Eq, Ord, Show)
 
+class LocEnv a where
+  locLens :: Lens a SourcePos
+
 class (Monad m) => MonadLoc m where
   askLoc   :: m SourcePos
   localLoc :: SourcePos -> m a -> m a
+
+instance (Monad m, LocEnv e) => MonadLoc (ReaderT e m) where
+  askLoc = asks (locLens ^$)
+  localLoc = local . (locLens ^=)
 
 useLoc :: (MonadLoc m) => (a -> m b) -> L a -> m b
 useLoc f (L x loc) = localLoc loc $ f x
@@ -160,6 +167,9 @@ instance (HasBindNames a) => HasBindNames (L a) where
 class (HasBindNames a) => Decl a where
   allowInCycles :: a -> Bool
 
+instance (Decl a) => Decl (L a) where
+  allowInCycles = allowInCycles . lVal
+
 data ModDecl =
     BindMod ModBinding
   | BindSig SigBinding
@@ -218,7 +228,7 @@ instance HasBindNames ModDecl where
   bindNames (Data _ n _ _ ds) = lVal n : concatMap bindNames ds
   bindNames (Infix _ _ _) = []
 
-data TyBound = TyBound (L TyCompOp) (L TyExpr)
+data TyBound = TyBound TyCompOp (L TyExpr)
   deriving (Eq, Ord, Show)
 
 data TyCompOp = OpSubTy | OpSuperTy | OpEqualTy
@@ -273,7 +283,7 @@ instance HasBindNames ValDecl where
 
 data TyDecl =
     FieldDecl (L BindName) (L TyExpr)
-  | Constraint (L TyExpr) (L TyCompOp) (L TyExpr)
+  | Constraint (L TyExpr) TyCompOp (L TyExpr)
   deriving (Eq, Ord, Show)
 
 instance Pretty TyCompOp SyntaxKind where

@@ -92,3 +92,5 @@ Possible improvements to do-notation:
   programming styles in the middle of a do-block just because you have one step
   that doesn't need full monadic powers.
 
+Eradicate orphan instances
+

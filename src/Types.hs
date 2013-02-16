@@ -4,6 +4,7 @@ module Types where
 
 import Data.Lens.Template
 import qualified Data.Map as Map
+import Text.Parsec.Pos (initialPos, SourcePos())
 
 import Common
 import Pretty
@@ -25,10 +26,11 @@ data Env =
   { _ePath  :: Maybe [BindName]
   , _eScope :: Map BindName Integer
   , _eBinds :: Map BindName Integer
+  , _eLoc   :: SourcePos
   } deriving (Eq, Ord, Show)
 
 emptyEnv :: Env
-emptyEnv = Env (Just []) Map.empty Map.empty
+emptyEnv = Env (Just []) Map.empty Map.empty (initialPos "")
 
 withBindsInScope :: (MonadReader Env m) => m a -> m a
 withBindsInScope =
