@@ -36,6 +36,10 @@ Add location information to the syntax tree via an L type like in GHC
       Then, when reporting an error, the existing report function can simply pull the
       current location out of the environment.
 
+    But what about functions that return a syntactic type?
+
+      LF' :: (b -> M a) -> (L b -> M (L a))
+
 Fix this weird thing: in a case-function, in an else clause, you might want to bind
 the arguments to variables. But you can't. So you have to use an "if" with all plain
 variables, which just makes it less obvious what it really is. So, allow the else

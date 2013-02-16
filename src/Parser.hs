@@ -11,7 +11,12 @@ import Token
 
 type Parser = Parsec [(Token, SourcePos)] ()
 
-parse :: String -> [(Token, SourcePos)] -> FM ModDecl
+type LParser a = Parser (L a)
+
+locate :: Parser a -> LParser a
+locate parser = flip L <$> getPosition <*> parser
+
+parse :: String -> [(Token, SourcePos)] -> FM (L ModDecl)
 parse name xs = case P.parse file name xs of
   Left err -> fatal $ EParser err
   Right decl -> return decl
@@ -37,7 +42,7 @@ kw xs = tok ("'" ++ xs ++ "'") $ \t -> case t of
   TExprOp ys | xs == ys -> Just ()
   _ -> Nothing
 
-genModHeader word = do
+genModHeader word = locate $ do
   kw word
   n <- bindName
   t <- optionMaybe hasTy
@@ -47,8 +52,8 @@ modHeader = genModHeader "module"
 
 sigHeader = genModHeader "sig"
 
-modExpr :: Parser ModExpr
-modExpr =
+modExpr :: LParser ModExpr
+modExpr = locate $ do
   do
     kw "fn"
     ps <- many valParam

@@ -17,10 +17,29 @@ module Syntax (
   , Program
   -- * Pretty-printing
   , SyntaxKind()
+  -- * Locations
+  , L(..), MonadLoc(..), useLoc, keepLoc, whenJustL
   ) where
 
 import Common
 import Pretty
+
+import Text.Parsec (SourcePos())
+
+data L a = L { lVal :: a, lLoc :: SourcePos } deriving (Eq, Ord, Show)
+
+class (Monad m) => MonadLoc m where
+  askLoc   :: m SourcePos
+  localLoc :: SourcePos -> m a -> m a
+
+useLoc :: (MonadLoc m) => (a -> m b) -> L a -> m b
+useLoc f (L x loc) = localLoc loc $ f x
+
+keepLoc :: (MonadLoc m) => (a -> m b) -> L a -> m (L b)
+keepLoc f l@(L _ loc) = useLoc f l >>= return . flip L loc
+
+whenJustL :: (Monad m) => Maybe (L a) -> (a -> m ()) -> m ()
+whenJustL m f = whenJust m $ f . lVal
 
 nameIsText :: String -> Bool
 nameIsText [] = error "Empty name in nameIsText"
@@ -66,6 +85,9 @@ instance TokenKind SyntaxKind where
   space _ SKColon = False
   space _ _ = True
 
+instance (Pretty a SyntaxKind) => Pretty (L a) SyntaxKind where
+  tokens = tokens . lVal
+
 type Program = ModExpr
 
 data BindName = BindName String | UniqueName Integer String
@@ -91,12 +113,12 @@ data InfixAssoc = InfixLeft | InfixRight | InfixNone
 
 data Binder =
   Binder
-  { binderName :: BindName
-  , binderTy   :: Maybe TyExpr
+  { binderName :: L BindName
+  , binderTy   :: Maybe (L TyExpr)
   } deriving (Eq, Ord, Show)
 
 instance HasBindNames Binder where
-  bindNames b = [binderName b]
+  bindNames b = [lVal $ binderName b]
 
 instance Pretty Binder SyntaxKind where
   tokens (Binder name Nothing) = tokens name
@@ -105,7 +127,7 @@ instance Pretty Binder SyntaxKind where
     colon
     tokens ty
 
-data Binding e = Binding Binder e
+data Binding e = Binding Binder (L e)
   deriving (Eq, Ord, Show)
 
 instance HasBindNames (Binding e) where
@@ -119,7 +141,7 @@ instance (Pretty e SyntaxKind) => Pretty (Binding e) SyntaxKind where
     tokens rhs
 
 bindingName :: Binding e -> BindName
-bindingName (Binding b _) = binderName b
+bindingName (Binding b _) = lVal $ binderName b
 
 type ModBinding = Binding ModExpr
 
@@ -132,6 +154,9 @@ type TyBinding = Binding TyExpr
 class HasBindNames a where
   bindNames :: a -> [BindName]
 
+instance (HasBindNames a) => HasBindNames (L a) where
+  bindNames = bindNames . lVal
+
 class (HasBindNames a) => Decl a where
   allowInCycles :: a -> Bool
 
@@ -140,8 +165,8 @@ data ModDecl =
   | BindSig SigBinding
   | BindVal ValBinding
   | BindTy TyBinding
-  | Data DataMode BindName (Maybe TyExpr) TyExpr [ModDecl]
-  | Infix InfixAssoc Integer [BindName]
+  | Data (L DataMode) (L BindName) (Maybe (L TyExpr)) (L TyExpr) [L ModDecl]
+  | Infix (L InfixAssoc) (L Integer) [L BindName]
   deriving (Eq, Ord, Show)
 
 instance Pretty BindName SyntaxKind where
@@ -161,10 +186,10 @@ instance Pretty ModDecl SyntaxKind where
   tokens (BindTy b) = tt "type" >> tokens b
   tokens (Data mode name parent ty kids) = do
     tt "data"
-    when (mode == DataOpen) $ tt "open"
+    when (lVal mode == DataOpen) $ tt "open"
     tokens name
     whenJust parent $ \parent -> t1 SKOper "<:" >> tokens parent
-    when (not $ ty == Prim TyEmpty) $ do
+    when (not $ lVal ty == Prim TyEmpty) $ do
       tt "is"
       tokens ty
     case kids of
@@ -172,7 +197,7 @@ instance Pretty ModDecl SyntaxKind where
       _  -> tellBrackets "{" "}" $ mapM_ tokens kids
   tokens (Infix assoc prec bs) = do
     tt "infix"
-    case assoc of
+    case lVal assoc of
       InfixLeft -> tt "left"
       InfixRight -> tt "right"
       InfixNone -> return ()
@@ -190,19 +215,19 @@ instance HasBindNames ModDecl where
   bindNames (BindSig b) = [bindingName b]
   bindNames (BindVal b) = [bindingName b]
   bindNames (BindTy b) = [bindingName b]
-  bindNames (Data _ n _ _ ds) = n : concatMap bindNames ds
+  bindNames (Data _ n _ _ ds) = lVal n : concatMap bindNames ds
   bindNames (Infix _ _ _) = []
 
-data TyBound = TyBound TyCompOp TyExpr
+data TyBound = TyBound (L TyCompOp) (L TyExpr)
   deriving (Eq, Ord, Show)
 
 data TyCompOp = OpSubTy | OpSuperTy | OpEqualTy
   deriving (Eq, Ord, Show)
 
 data SigDecl =
-    SigVal BindName TyExpr
-  | SigTy BindName (Maybe TyBound)
-  | SigMod BindName TyExpr
+    SigVal (L BindName) (L TyExpr)
+  | SigTy (L BindName) (Maybe (L TyBound))
+  | SigMod (L BindName) (L TyExpr)
   deriving (Eq, Ord, Show)
 
 instance Pretty SigDecl SyntaxKind where
@@ -215,7 +240,7 @@ instance Pretty SigDecl SyntaxKind where
   tokens (SigTy name bound) = do
     tt "type"
     tokens name
-    whenJust bound $ \(TyBound op ty) -> do
+    whenJustL bound $ \(TyBound op ty) -> do
       tokens op
       tokens ty
     semi
@@ -230,9 +255,9 @@ instance Decl SigDecl where
   allowInCycles = const False
 
 instance HasBindNames SigDecl where
-  bindNames (SigVal n _) = [n]
-  bindNames (SigTy n _) = [n]
-  bindNames (SigMod n _) = [n]
+  bindNames (SigVal n _) = [lVal n]
+  bindNames (SigTy n _) = [lVal n]
+  bindNames (SigMod n _) = [lVal n]
 
 data ValDecl = BindLocalVal ValBinding
   deriving (Eq, Ord, Show)
@@ -247,8 +272,8 @@ instance HasBindNames ValDecl where
   bindNames (BindLocalVal b) = [bindingName b]
 
 data TyDecl =
-    FieldDecl BindName TyExpr
-  | Constraint TyExpr TyCompOp TyExpr
+    FieldDecl (L BindName) (L TyExpr)
+  | Constraint (L TyExpr) (L TyCompOp) (L TyExpr)
   deriving (Eq, Ord, Show)
 
 instance Pretty TyCompOp SyntaxKind where
@@ -276,14 +301,14 @@ instance HasBindNames TyDecl where
   bindNames = const []
 
 data Expr d e =
-    Lam [Binder] (Expr d e)
-  | App (Expr d e) [Expr d e]
-  | Record [d]
-  | Ref BindName
-  | UniqueRef Integer
-  | Member (Expr d e) BindName
-  | OpChain (Maybe (Expr d e)) [(Expr d e, Expr d e)]
-  | Let [d] (Expr d e)
+    Lam [L Binder] (L (Expr d e))
+  | App (L (Expr d e)) [L (Expr d e)]
+  | Record [L d]
+  | Ref (L BindName)
+  | UniqueRef (L Integer)
+  | Member (L (Expr d e)) (L BindName)
+  | OpChain (Maybe (L (Expr d e))) [(L (Expr d e), L (Expr d e))]
+  | Let [L d] (L (Expr d e))
   | Prim e
   | ToDo
   deriving (Eq, Ord, Show)
@@ -321,13 +346,13 @@ instance
   tokens ToDo = t1 SKOper "?"
 
 data ValPrim =
-    LamCase [CaseClause]
-  | Case ValExpr [CaseClause]
-  | Do [DoElem]
-  | EInt Integer
-  | EFloat Rational
-  | EString String
-  | EChar Char
+    LamCase [L CaseClause]
+  | Case (L ValExpr) [L CaseClause]
+  | Do [L DoElem]
+  | EInt (L Integer)
+  | EFloat (L Rational)
+  | EString (L String)
+  | EChar (L Char)
   deriving (Eq, Ord, Show)
 
 instance Pretty ValPrim SyntaxKind where
@@ -341,14 +366,14 @@ instance Pretty ValPrim SyntaxKind where
     tellBrackets "{" "}" $ mapM_ tokens cs
   tokens (Do es) = tt "do" >> tellBrackets "{" "}" (mapM_ tokens es)
   tokens (EInt n) = tt $ show n
-  tokens (EFloat (a :% b)) = tellBrackets "(" ")" $ do
+  tokens (EFloat (L (a :% b) _)) = tellBrackets "(" ")" $ do
     tt $ show a
     t1 SKOper "/"
     tt $ show b
   -- TODO escape properly
-  tokens (EString xs) = tt $ "\"" ++ xs ++ "\""
+  tokens (EString xs) = tt $ "\"" ++ lVal xs ++ "\""
   -- TODO escape properly
-  tokens (EChar x) = tt $ "'" ++ [x] ++ "'"
+  tokens (EChar x) = tt $ "'" ++ [lVal x] ++ "'"
 
 data CaseClause = CaseClause Pat ValExpr
   deriving (Eq, Ord, Show)
@@ -362,9 +387,9 @@ instance Pretty CaseClause SyntaxKind where
     semi
 
 data DoElem =
-    DoLet [ValDecl]
-  | DoBind Pat ValExpr
-  | DoExpr ValExpr
+    DoLet [L ValDecl]
+  | DoBind (L Pat) (L ValExpr)
+  | DoExpr (L ValExpr)
   deriving (Eq, Ord, Show)
 
 instance Pretty DoElem SyntaxKind where
@@ -382,12 +407,12 @@ instance Pretty DoElem SyntaxKind where
     semi
 
 data Pat =
-    PatParams [Pat]
-  | PatBind BindName
-  | PatApp ValExpr [Pat]
-  | PatInt Integer
-  | PatString String
-  | PatChar Char
+    PatParams [L Pat]
+  | PatBind (L BindName)
+  | PatApp (L ValExpr) [L Pat]
+  | PatInt (L Integer)
+  | PatString (L String)
+  | PatChar (L Char)
   | PatIgnore
   deriving (Eq, Ord, Show)
 
@@ -404,7 +429,7 @@ instance Pretty Pat SyntaxKind where
 
 instance HasBindNames Pat where
   bindNames (PatParams ps) = ps >>= bindNames
-  bindNames (PatBind n) = [n]
+  bindNames (PatBind n) = [lVal n]
   bindNames (PatApp _ ps) = ps >>= bindNames
   bindNames _ = []
 
