@@ -18,15 +18,20 @@ module Syntax (
   -- * Pretty-printing
   , SyntaxKind()
   -- * Locations
-  , L(..), LocEnv(..), MonadLoc(..), useLoc, keepLoc, whenJustL
+  , noLoc, L(..), LocEnv(..), MonadLoc(..), useLoc, keepLoc, whenJustL
   ) where
 
 import Common
 import Pretty
 
-import Text.Parsec (SourcePos())
+import Text.Parsec.Pos (SourcePos(), newPos)
+
+noLoc = newPos "" (-1) (-1)
 
 data L a = L { lVal :: a, lLoc :: SourcePos } deriving (Eq, Ord, Show)
+
+instance Functor L where
+  fmap f x = x { lVal = f $ lVal x }
 
 class LocEnv a where
   locLens :: Lens a SourcePos

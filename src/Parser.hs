@@ -17,7 +17,7 @@ locate :: Parser a -> LParser a
 locate parser = flip L <$> getPosition <*> parser
 
 parse :: String -> [(Token, SourcePos)] -> FM (L ModDecl)
-parse name xs = case P.parse file name xs of
+parse name xs = case P.parse (locate file) name xs of
   Left err -> fatal $ EParser err
   Right decl -> return decl
 
@@ -42,9 +42,9 @@ kw xs = tok ("'" ++ xs ++ "'") $ \t -> case t of
   TExprOp ys | xs == ys -> Just ()
   _ -> Nothing
 
-genModHeader word = locate $ do
+genModHeader word = do
   kw word
-  n <- bindName
+  n <- locate bindName
   t <- optionMaybe hasTy
   return $ Binder n t
 
@@ -56,17 +56,17 @@ modExpr :: LParser ModExpr
 modExpr = locate $ do
   do
     kw "fn"
-    ps <- many valParam
+    ps <- many $ locate valParam
     kw "->"
-    fmap (Lam ps) modExpr
+    Lam ps <$> modExpr
   <|>
   fmap Record (kw "rec" >> braces (many modDecl))
   <|>
   do
-    (x : xs) <- many1 modPrim
+    (x : xs) <- many1 $ locate modPrim
     return $ App x xs
 
-modPrim = ref <|> parens modExpr
+modPrim = ref <|> (lVal <$> parens modExpr)
 
 dataMode =
   choice
@@ -75,16 +75,16 @@ dataMode =
     , ("closed", DataClosed)
     ]
 
-parentTy = kw "<:" >> ty
+parentTy = kw "<:" >> locate ty
 
-hasTy = kw ":" >> ty
+hasTy = kw ":" >> locate ty
 
 valParam =
-  fmap (flip Binder Nothing) bindName
+  fmap (flip Binder Nothing) (locate bindName)
   <|>
   do
     kw "("
-    n <- bindName
+    n <- locate bindName
     t <- optionMaybe hasTy
     kw ")"
     return $ Binder n t
@@ -96,23 +96,26 @@ infixAssoc =
     , ("right", InfixRight)
     ]
 
+dataDecl :: Parser (Maybe (L TyExpr)) -> Parser ModDecl
 dataDecl par = do
-  o <- optionMaybe dataMode
-  n <- bindName
+  o <- optionMaybe $ locate dataMode
+  n <- locate bindName
   p <- par
-  t <- optionMaybe $ kw "is" >> ty
-  c <- (kw ";" >> return []) <|> (braces . many . dataDecl $ return Nothing)
-  return $ Data (maybe DataClosed id o) n p (maybe (Prim TyEmpty) id t) c
+  t <- optionMaybe $ kw "is" >> locate ty
+  c <- (kw ";" >> return []) <|> (braces . many . locate . dataDecl $ return Nothing)
+  return $ Data
+    (maybe (L DataClosed noLoc) id o) n p
+    (maybe (L (Prim TyEmpty) noLoc) id t) c
 
-modDecl =
+modDecl = locate $ do
   fileDecl
   <|>
   do
     kw "val"
-    n <- bindName
+    n <- locate bindName
     t <- optionMaybe hasTy
     kw "is"
-    fmap (BindVal . (Binding $ Binder n t)) valPrimEnd
+    BindVal . (Binding $ Binder n t) <$> locate valPrimEnd
   <|>
   do
     kw "data"
@@ -120,34 +123,35 @@ modDecl =
   <|>
   do
     kw "type"
-    n <- bindName
+    n <- locate bindName
     lhs <- optionMaybe hasTy
     kw "is"
-    rhs <- ty
+    rhs <- locate ty
     kw ";"
     return $ BindTy (Binding (Binder n lhs) rhs)
   <|>
   do
     kw "infix"
-    a <- optionMaybe infixAssoc
-    n <- tok "literal integer" $ \t -> case t of
+    a <- optionMaybe $ locate infixAssoc
+    n <- locate $ tok "literal integer" $ \t -> case t of
       TInt n -> Just n
       _ -> Nothing
-    bs <- many1 bindName
+    bs <- many1 $ locate bindName
     kw ";"
-    return $ Infix (maybe InfixNone id a) n bs
+    return $ Infix (maybe (L InfixNone noLoc) id a) n bs
 
 fileDecl =
   do
     h <- modHeader
     kw "is"
-    fmap (BindMod . Binding h) modExpr
+    BindMod . Binding h <$> modExpr
   <|>
   do
     h <- sigHeader
     kw "is"
     kw "rec"
-    fmap (BindSig . Binding h . Record) . braces . semi $ sigDecl
+    rec <- locate (Record <$> (braces . semi . locate $ sigDecl))
+    return $ BindSig $ Binding h rec
 
 ident = tok "identifier" $ \t -> case t of
   TId xs -> Just xs
@@ -159,11 +163,11 @@ oper = tok "operator" $ \t -> case t of
 
 bindName = fmap BindName $ ident <|> parens oper
 
-ref = fmap (Ref . BindName) ident
+ref = Ref <$> (locate $ BindName <$> ident)
 
 tyRel = do
   o <- tyCompOp
-  t <- ty
+  t <- locate ty
   return $ TyBound o t
 
 tyCompOp =
@@ -177,31 +181,34 @@ tyCompOp =
 sigDecl =
   do
     kw "val"
-    n <- bindName
+    n <- locate bindName
     t <- hasTy
     return $ SigVal n t
   <|>
   do
     kw "type"
-    n <- bindName
-    t <- optionMaybe tyRel
+    n <- locate bindName
+    t <- optionMaybe $ locate tyRel
     return $ SigTy n t
   <|>
   do
     kw "module"
-    n <- bindName
+    n <- locate bindName
     t <- hasTy
     return $ SigMod n t
 
+valExpr :: Parser ValExpr
 valExpr = expr "expression" valOp valPrim
 
-valOp = tok "operator" $ \t -> case t of
-  TExprOp xs -> Just . Ref . BindName $ xs
-  _ -> Nothing
+valOp = do
+  pos <- getPosition
+  tok "operator" $ \t -> case t of
+    TExprOp xs -> Just . Ref . flip L pos . BindName $ xs
+    _ -> Nothing
 
 expr descr op prim =
   do
-    h <- exprApp prim
+    h <- locate $ exprApp prim
     t <- many $ exprOp op prim
     return $ OpChain (Just h) t
   <|>
@@ -212,8 +219,8 @@ expr descr op prim =
   descr
 
 exprOp op prim = do
-  o <- op
-  a <- exprApp prim
+  o <- locate op
+  a <- locate $ exprApp prim
   return (o, a)
 
 exprApp prim = do
@@ -221,21 +228,23 @@ exprApp prim = do
   t <- many $ exprMember prim
   return $ App h t
 
+exprMember :: Parser (Expr d e) -> LParser (Expr d e)
 exprMember prim = do
-  h <- prim
-  t <- many $ kw "." >> bindName
-  return $ foldl Member h t
+  loc <- getPosition
+  h <- locate prim
+  t <- many $ kw "." >> locate bindName
+  return $ foldl (\h t -> L (Member h t) loc) h t
 
 localBind = do
-  n <- bindName
+  n <- locate bindName
   t <- optionMaybe hasTy
   kw "is"
-  e <- valExpr
+  e <- locate valExpr
   return . BindLocalVal $ Binding (Binder n t) e
 
 semi = (`sepEndBy1` kw ";")
 
-localBinds = semi localBind
+localBinds = semi $ locate localBind
 
 exprLam = kw "fn" >> (lamCase <|> lamPlain)
   where
@@ -245,12 +254,13 @@ exprLam = kw "fn" >> (lamCase <|> lamPlain)
        - an expression rather than a block of clauses.
        --}
       try $ kw "{"
-      e <- Prim . LamCase <$> many1 (genCaseClause $ PatParams <$> many1 pat)
+      e <- Prim . LamCase
+        <$> many1 (locate . genCaseClause $ PatParams <$> many1 (locate pat))
       kw "}"
       return e
     lamPlain = do
-      ps <- many valParam
-      fmap (Lam ps) valPrimEnd
+      ps <- many $ locate valParam
+      Lam ps <$> locate valPrimEnd
 
 genCaseClause :: Parser Pat -> Parser CaseClause
 genCaseClause pat =
@@ -266,24 +276,28 @@ genCaseClause pat =
 
 exprCase = fmap Prim $ do
   kw "case"
-  s <- valExpr
+  s <- locate valExpr
   kw "of"
-  cs <- braces . many1 $ genCaseClause patApp
+  cs <- braces . many1 . locate $ genCaseClause patApp
   return $ Case s cs
 
 exprRec = fmap Record $ kw "rec" >> braces localBinds
 
 exprBegin = braces valExpr
 
-exprLit = fmap Prim . tok "literal primitive" $ \t -> case t of
-  TInt n -> Just $ EInt n
-  TFloat n -> Just $ EFloat n
-  TString xs -> Just $ EString xs
-  TChar c -> Just $ EChar c
-  _ -> Nothing
+exprLit = do
+  pos <- getPosition
+  fmap Prim . tok "literal primitive" $ \t -> case t of
+    TInt n -> Just $ EInt $ L n pos
+    TFloat n -> Just $ EFloat $ L n pos
+    TString xs -> Just $ EString $ L xs pos
+    TChar c -> Just $ EChar $ L c pos
+    _ -> Nothing
 
+valPrimBlock :: Parser ValExpr
 valPrimBlock = choice [exprLam, exprCase, exprRec, exprBegin, exprDo, exprLet]
 
+valPrimEnd :: Parser ValExpr
 valPrimEnd = valPrimBlock <|> do
   e <- valExpr
   kw ";"
@@ -291,28 +305,27 @@ valPrimEnd = valPrimBlock <|> do
 
 valPrim = choice [valPrimBlock, ref, exprLit, kw "?" >> return ToDo, parens valExpr]
 
-exprDo = fmap (Prim . Do) $ kw "do" >> braces (semi doElem)
+exprDo = fmap (Prim . Do) $ kw "do" >> braces (semi $ locate doElem)
 
 exprLet = do
   kw "let"
   bs <- localBinds
   kw "in"
-  e <- valPrimEnd
-  return $ Let bs e
+  Let bs <$> locate valPrimEnd
 
 doElem =
   fmap DoLet (kw "let" >> braces localBinds)
   <|>
   do
-    p <- patApp
+    p <- locate patApp
     kw "<-"
-    e <- valExpr
-    return $ DoBind p e
+    DoBind p <$> locate valExpr
   <|>
-  fmap DoExpr valExpr
+  DoExpr <$> locate valExpr
   <?>
   "do-element"
 
+pat :: Parser Pat
 pat =
   {--
    - We have to backtrack if this fails because it might have consumed a
@@ -326,27 +339,32 @@ pat =
   <?>
   "pattern"
 
-patLit = tok "literal primitive pattern" $ \t -> case t of
-  TInt n -> Just $ PatInt n
-  TString xs -> Just $ PatString xs
-  TChar c -> Just $ PatChar c
-  _ -> Nothing
+patLit = do
+  pos <- getPosition
+  tok "literal primitive pattern" $ \t -> case t of
+    TInt n -> Just $ PatInt $ L n pos
+    TString xs -> Just $ PatString $ L xs pos
+    TChar c -> Just $ PatChar $ L c pos
+    _ -> Nothing
 
 patName = do
-  ns <- bindName `sepEndBy1` kw "."
+  pos <- getPosition
+  ns <- locate bindName `sepEndBy1` kw "."
   return $ case ns of
     [] -> error "Impossible!"
-    [n] | namespace n == NsValues -> PatBind n
-    (n : ns) -> PatApp (foldl Member (Ref n) ns) []
+    [n] | namespace (lVal n) == NsValues -> PatBind n
+    (n : ns) -> PatApp (foldl (\h t -> L (Member h t) pos) (L (Ref n) pos) ns) []
 
 patApp = do
-  ns <- bindName `sepEndBy1` kw "."
-  ps <- many pat
+  pos <- getPosition
+  ns <- locate bindName `sepEndBy1` kw "."
+  ps <- many $ locate pat
   return $ case ns of
     [] -> error "Impossible!"
-    [n] | null ps && namespace n == NsValues -> PatBind n
-    (n : ns) -> PatApp (foldl Member (Ref n) ns) ps
+    [n] | null ps && namespace (lVal n) == NsValues -> PatBind n
+    (n : ns) -> PatApp (foldl (\h t -> L (Member h t) pos) (L (Ref n) pos) ns) ps
 
+ty :: Parser TyExpr
 ty = do
   qs <- tyQuants
   co <- tyCore
@@ -360,16 +378,21 @@ ty = do
     [] -> co
     _ -> Let cs co
 
+tyQuants :: Parser [Binder]
 tyQuants =
   fmap (maybe [] $ map $ flip Binder Nothing)
   $ optionMaybe
   $ between (kw "forall") (kw ".")
-  $ many1 bindName
+  $ many1
+  $ locate bindName
 
+tyCore :: Parser TyExpr
 tyCore = expr "type" tyOp tyPrim
 
+tyOp :: Parser TyExpr
 tyOp = kw "->" >> return (Prim TyFn)
 
+tyPrim :: Parser TyExpr
 tyPrim =
   parens tyCore
   <|>
@@ -379,11 +402,13 @@ tyPrim =
   <|>
   ref
 
+tyRec :: Parser TyExpr
 tyRec = fmap Record $ between (kw "rec") (kw "end") $ semi $ do
   n <- bindName
   t <- hasTy
   return $ FieldDecl n t
 
+tyConstr :: Parser TyDecl
 tyConstr = do
   kw "with"
   lhs <- tyCore
