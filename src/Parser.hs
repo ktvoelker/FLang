@@ -367,20 +367,20 @@ patApp = do
 ty :: Parser TyExpr
 ty = do
   qs <- tyQuants
-  co <- tyCore
-  cs <- many tyConstr
+  co <- locate tyCore
+  cs <- many $ locate tyConstr
   let
   { qf = case qs of
-      [] -> id
+      [] -> lVal
       _ -> Lam qs
   }
   return $ qf $ case cs of
     [] -> co
-    _ -> Let cs co
+    _ -> L (Let cs co) $ lLoc co
 
-tyQuants :: Parser [Binder]
+tyQuants :: Parser [L Binder]
 tyQuants =
-  fmap (maybe [] $ map $ flip Binder Nothing)
+  fmap (maybe [] $ map $ \n@(L _ loc) -> L (Binder n Nothing) loc)
   $ optionMaybe
   $ between (kw "forall") (kw ".")
   $ many1
@@ -404,15 +404,15 @@ tyPrim =
 
 tyRec :: Parser TyExpr
 tyRec = fmap Record $ between (kw "rec") (kw "end") $ semi $ do
-  n <- bindName
+  n <- locate bindName
   t <- hasTy
-  return $ FieldDecl n t
+  return $ L (FieldDecl n t) $ lLoc n
 
 tyConstr :: Parser TyDecl
 tyConstr = do
   kw "with"
-  lhs <- tyCore
+  lhs <- locate tyCore
   op <- tyCompOp
-  rhs <- tyCore
+  rhs <- locate tyCore
   return $ Constraint lhs op rhs
 
