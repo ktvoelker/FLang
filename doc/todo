@@ -2,6 +2,17 @@
 TO-DO
 =====
 
+Write the module type-checker
+
+Write the type type-checker
+
+  Can this be separated from the value type-checker? What needs checking here?
+
+  Note: we need to add variance notation to type variables. What causes this?
+    1. Ref a: the a must be invariant
+
+Write the value type-checker
+
 Improve the ECirc errors in the sorter
 
 Consider requiring a special symbol to be prefixed onto any global Ref
@@ -12,29 +23,6 @@ Pretty-printer
   * Implement smart breaking of long lines
   * Handle operator precedence correctly
   * Clean up the output to be fully ideal
-
-Add location information to the syntax tree via an L type like in GHC
-
-  Also wrap errors in the L type
-
-  Use monad magic to make this all nicer to deal with:
-
-    Say we have an existing function T -> M a.
-
-    Now, we want to operate on an L T instead.
-
-    So, we have a combinator LF :: (b -> M a) -> (L b -> M a)
-
-    Here's how it works:
-
-      There's a current location in the environment.
-
-      LF takes the input, strips off the location, and feeds the real input to the
-      given function, but returns that function wrapped in a local environment where
-      the current location has been set to the extracted location.
-
-      Then, when reporting an error, the existing report function can simply pull the
-      current location out of the environment.
 
 Fix this weird thing: in a case-function, in an else clause, you might want to bind
 the arguments to variables. But you can't. So you have to use an "if" with all plain
