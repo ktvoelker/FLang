@@ -1,4 +1,5 @@
 
+{-# LANGUAGE TemplateHaskell #-}
 module Annotation
   ( module Annotation
   , module Annotation.Internal
@@ -19,7 +20,33 @@ class Annotated a where
 --   of the real constructor except the Ann, plus emptyAnn at the end. Constructors
 --   declared as records will have a randomly-generated unique name for the Ann field.
 annotate :: Q [Dec] -> Q [Dec]
-annotate = undefined
+annotate = (>>= return . concat) . (>>= mapM annotate1)
+
+annotate1 :: Dec -> Q [Dec]
+annotate1 (DataD cxt name tvs cons dvs) = do
+    cons'  <- mapM annotateCon cons
+    smarts <- mapM mkSmartCon cons
+    inst   <- mkAnnInst name (length tvs) cons
+    return $ inst : DataD cxt name tvs cons' dvs : smarts
+annotate1 (NewtypeD cxt name tvs con dvs) = do
+    con'  <- annotateCon con
+    smart <- mkSmartCon con
+    inst  <- mkAnnInst name (length tvs) [con]
+    return [inst, NewtypeD cxt name tvs con' dvs, smart]
+annotate1 d = return [d]
+
+annotateCon :: Con -> Q Con
+annotateCon (NormalC name tys) = return $ NormalC name $ (NotStrict, ConT ''Ann) : tys
+annotateCon (RecC name tys) =
+  RecC name . (: tys) . (, NotStrict, ConT ''Ann) <$> newName "_ann"
+annotateCon c@(InfixC _ _ _) = return c
+annotateCon (ForallC tvs cxt con) = ForallC tvs cxt <$> annotateCon con
+
+mkSmartCon :: Con -> Q Dec
+mkSmartCon = undefined
+
+mkAnnInst :: Name -> Int -> [Con] -> Q Dec
+mkAnnInst = undefined
 
 class (Monad m) => MonadSourcePos m where
   getSourcePos :: m SourcePos
