@@ -12,7 +12,7 @@ stability:      experimental
 bug-reports:    mailto:ktvoelker@gmail.com
 synopsis:       The F Programming Language
 category:       Language
-tested-with:    GHC == 7.4.1
+tested-with:    GHC == 7.4.2
 
 Executable fc
   main-is:          Main.hs
