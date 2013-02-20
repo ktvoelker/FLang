@@ -25,7 +25,7 @@ Executable fc
     -fno-warn-missing-signatures
   build-depends:
     base                 >= 4    && < 5,
-    containers           >= 0.4  && < 0.5,
+    containers           >= 0.4  && < 0.6,
     text                 >= 0.11 && < 0.12,
     parsec               >= 3.1  && < 3.2,
     mtl                  >= 2.1  && < 2.2,
@@ -33,7 +33,7 @@ Executable fc
     data-lens            >= 2.10 && < 2.11,
     data-lens-fd         >= 2.0  && < 2.1,
     data-lens-template   >= 2.1  && < 2.2,
-    template-haskell     >= 2.7  && < 2.8,
+    template-haskell     >= 2.7  && < 2.9,
     comonad-transformers >= 3.0 && < 3.1
   default-extensions:
     NoImplicitPrelude
