@@ -8,6 +8,7 @@ module Annotation
 import Import
 import Annotation.Internal
 
+import Control.Comonad.Trans.Store
 import Language.Haskell.TH
 import Text.Parsec.Pos (SourcePos())
 
@@ -25,14 +26,14 @@ annotate = (>>= return . concat) . (>>= mapM annotate1)
 annotate1 :: Dec -> Q [Dec]
 annotate1 (DataD cxt name tvs cons dvs) = do
     cons'  <- mapM annotateCon cons
-    smarts <- mapM mkSmartCon cons
+    let smarts = catMaybes $ map (fmap mkSmartCon . conName) cons
     inst   <- mkAnnInst name (length tvs) cons
     return $ inst : DataD cxt name tvs cons' dvs : smarts
 annotate1 (NewtypeD cxt name tvs con dvs) = do
     con'  <- annotateCon con
-    smart <- mkSmartCon con
+    let smart = maybeToList $ fmap mkSmartCon $ conName con
     inst  <- mkAnnInst name (length tvs) [con]
-    return [inst, NewtypeD cxt name tvs con' dvs, smart]
+    return $ inst : NewtypeD cxt name tvs con' dvs : smart
 annotate1 d = return [d]
 
 annotateCon :: Con -> Q Con
@@ -42,11 +43,55 @@ annotateCon (RecC name tys) =
 annotateCon c@(InfixC _ _ _) = return c
 annotateCon (ForallC tvs cxt con) = ForallC tvs cxt <$> annotateCon con
 
-mkSmartCon :: Con -> Q Dec
-mkSmartCon = undefined
+mkSmartCon :: Name -> Dec
+mkSmartCon name =
+  ValD (VarP . mkName $ "mk" ++ nameBase name)
+    (NormalB $ AppE (ConE name) $ VarE 'emptyAnn) []
+
+conName :: Con -> Maybe Name
+conName (NormalC name _) = Just name
+conName (RecC name _) = Just name
+conName (InfixC _ _ _) = Nothing
+conName (ForallC _ _ con) = conName con
 
 mkAnnInst :: Name -> Int -> [Con] -> Q Dec
-mkAnnInst = undefined
+mkAnnInst name n cons = do
+  body <- mkRunLensBody cons
+  ts   <- mapM (const $ newName "t") [1 .. n]
+  let name' = foldl AppT (ConT name) $ map VarT ts
+  return $ InstanceD [] (AppT (ConT ''Annotated) name')
+    [ ValD (VarP $ mkName "annotationLens") (NormalB $ AppE (ConE ''Lens) body) [] ]
+
+-- | Make the body of the runLens function, which has type "a -> Store a b".
+mkRunLensBody :: [Con] -> Q Exp
+mkRunLensBody cons = do
+  name <- newName "x"
+  LamE [VarP name] . CaseE (VarE name) <$> mapM mkRunLensMatch cons
+
+mkRunLensMatch :: Con -> Q Match
+mkRunLensMatch (NormalC name tys) = mkRunLensMatch' name $ length tys
+mkRunLensMatch (RecC name tys) = mkRunLensMatch' name $ length tys
+mkRunLensMatch (InfixC _ _ _) = return $ Match WildP (NormalB $ VarE 'undefined) []
+mkRunLensMatch (ForallC _ _ con) = mkRunLensMatch con
+
+mkRunLensMatch' :: Name -> Int -> Q Match
+mkRunLensMatch' name n = do
+  oldAnnName <- newName "oldAnn"
+  newAnnName <- newName "newAnn"
+  otherNames <- mapM (const $ newName "other") [1 .. n]
+  let
+  { updater =
+      LamE [VarP newAnnName]
+      $ foldl AppE (ConE name)
+      $ map VarE
+      $ newAnnName : otherNames
+  }
+  return
+    $ Match (ConP name $ map VarP $ oldAnnName : otherNames)
+      ( NormalB
+      $ AppE (AppE (ConE ''StoreT) (AppE (ConE ''Identity) updater))
+      $ VarE oldAnnName
+      ) []
 
 class (Monad m) => MonadSourcePos m where
   getSourcePos :: m SourcePos
