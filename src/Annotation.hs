@@ -60,7 +60,7 @@ mkAnnInst name n cons = do
   ts   <- mapM (const $ newName "t") [1 .. n]
   let name' = foldl AppT (ConT name) $ map VarT ts
   return $ InstanceD [] (AppT (ConT ''Annotated) name')
-    [ ValD (VarP $ mkName "annotationLens") (NormalB $ AppE (ConE ''Lens) body) [] ]
+    [ ValD (VarP $ mkName "annotationLens") (NormalB $ AppE (ConE 'Lens) body) [] ]
 
 -- | Make the body of the runLens function, which has type "a -> Store a b".
 mkRunLensBody :: [Con] -> Q Exp
@@ -89,7 +89,7 @@ mkRunLensMatch' name n = do
   return
     $ Match (ConP name $ map VarP $ oldAnnName : otherNames)
       ( NormalB
-      $ AppE (AppE (ConE ''StoreT) (AppE (ConE ''Identity) updater))
+      $ AppE (AppE (ConE 'StoreT) (AppE (ConE 'Identity) updater))
       $ VarE oldAnnName
       ) []
 
