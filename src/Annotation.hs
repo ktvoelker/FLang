@@ -23,6 +23,8 @@ class Annotated a where
 annotate :: Q [Dec] -> Q [Dec]
 annotate = (>>= return . concat) . (>>= mapM annotate1)
 
+annotateExcept _ = annotate
+
 annotate1 :: Dec -> Q [Dec]
 annotate1 (DataD cxt name tvs cons dvs) = do
     cons'  <- mapM annotateCon cons
