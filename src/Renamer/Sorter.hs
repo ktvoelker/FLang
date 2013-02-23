@@ -49,6 +49,6 @@ newtype Key = Key Integer deriving (Eq, Ord, Show)
 bindKey :: (Decl a) => a -> Key
 bindKey = Key . fromJust . listToMaybe . sort . map f . bindNames
   where
-    f (UniqueName n _) = n
+    f (UniqueName _ n _) = n
     f n = error $ "Impossible: " ++ show n
 

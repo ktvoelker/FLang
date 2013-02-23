@@ -9,8 +9,8 @@ class (HasBindNames a) => Decl a where
   allowInCycles :: a -> Bool
 
 instance Decl ModDecl where
-  allowInCycles (BindVal _) = True
-  allowInCycles (Data _ _ _ _ _) = True
+  allowInCycles (BindVal _ _) = True
+  allowInCycles (Data _ _ _ _ _ _) = True
   allowInCycles _ = False
 
 instance Decl SigDecl where
