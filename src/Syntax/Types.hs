@@ -2,7 +2,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Syntax.Types where
 
-import Common
+import Annotation
+import Import
 
 data No
 

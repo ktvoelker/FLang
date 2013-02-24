@@ -16,7 +16,7 @@ instance MonadSourcePos Parser where
 
 parse :: String -> [(Token, SourcePos)] -> FM ModDecl
 parse name xs = case P.parse file name xs of
-  Left err -> fatal $ EParser err
+  Left err -> fatal . Err EParser Nothing Nothing . Just . show $ err
   Right decl -> return decl
 
 tok :: String -> (Token -> Maybe a) -> Parser a

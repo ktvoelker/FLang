@@ -20,7 +20,7 @@ rename p =
   where
     f = do
       result <- gRoot %>>= renameExpr
-      lift2 getAccum >>= lift3 . report . EInternal . show
+      lift2 getAccum >>= lift3 . internal
       return result
 
 allocUnique :: (MonadState Global m) => m Integer
@@ -78,7 +78,9 @@ renameNameFrom field n@(BindName a xs) = do
   let z = Map.lookup n $ env ^. field
   case z of
     Nothing -> do
-      lift3 . report . EUnbound $ xs
+      lift3
+        . report
+        $ Err EUnbound (a ^. annSourcePos) (Just n) Nothing
       return n
     Just z -> return $ UniqueName a z xs
 renameNameFrom _ n@(UniqueName _ _ _) = return n
@@ -141,7 +143,7 @@ renameExpr e@(ToDo _) = return e
 
 instance RenamePrim No where
   renamePrim no = do
-    lift3 . report $ EInternal "Unexpected Prim found in ModExpr or SigExpr"
+    lift3 . internal $ "Unexpected Prim found in ModExpr or SigExpr"
     return no
 
 instance RenamePrim ValPrim where

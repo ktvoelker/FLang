@@ -1,28 +1,34 @@
 
-module Monad (CompileError(..), fatal, report, FM(), runFM) where
+module Monad (ErrType(..), Err(..), fatal, report, internal, FM(), runFM) where
 
 import Control.Monad.Writer
-import Text.Parsec (ParseError())
+import Text.Parsec.Pos (SourcePos())
 
 import Import
+import Syntax.Types (BindName())
 import Util
 
-data CompileError =
-    EUnknown String
-  | ELexer ParseError
-  | EParser ParseError
-  | EInternal String
-  | EUnbound String
-  | ECircRef String
-  deriving (Show)
+data ErrType = EUnknown | ELexer | EParser | EInternal | EUnbound | ECircRef
+  deriving (Eq, Ord, Enum, Bounded, Show)
 
-newtype FM a = FM { getFM :: Writer [CompileError] (Maybe a) }
+data Err =
+  Err
+  { errType      :: ErrType
+  , errSourcePos :: Maybe SourcePos
+  , errName      :: Maybe BindName
+  , errMore      :: Maybe String
+  } deriving (Eq, Ord, Show)
 
-fatal :: CompileError -> FM a
+newtype FM a = FM { getFM :: Writer [Err] (Maybe a) }
+
+fatal :: Err -> FM a
 fatal = (>> mzero) . report
 
-report :: CompileError -> FM ()
+report :: Err -> FM ()
 report = tell . (: [])
+
+internal :: (Show a) => a -> FM ()
+internal = report . Err EInternal Nothing Nothing . Just . show
 
 instance Monad FM where
   return = FM . return . Just
@@ -40,7 +46,7 @@ instance MonadPlus FM where
   mzero = FM $ return Nothing
   mplus (FM a) (FM b) = FM $ a >>= maybe b (return . Just)
 
-instance MonadWriter [CompileError] FM where
+instance MonadWriter [Err] FM where
   writer = FM . writer . mapFst Just
   tell = FM . fmap Just . tell
   listen (FM m) = FM $ listen m >>= uncurry (flip f)
@@ -51,6 +57,6 @@ instance MonadWriter [CompileError] FM where
       f Nothing = (Nothing, id)
       f (Just (a, f)) = (Just a, f)
 
-runFM :: FM a -> (Maybe a, [CompileError])
+runFM :: FM a -> (Maybe a, [Err])
 runFM = runWriter . getFM
 

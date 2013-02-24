@@ -9,7 +9,7 @@ import Token
 
 tokenize :: String -> String -> FM [(Token, SourcePos)]
 tokenize name xs = case parse file name xs of
-  Left err -> fatal $ ELexer err
+  Left err -> fatal . Err ELexer Nothing Nothing . Just . show $ err
   Right ts -> return ts
 
 withPos parser = do

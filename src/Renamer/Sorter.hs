@@ -23,7 +23,7 @@ sortDecls pairs = do
   let graph = [(decl, bindKey decl, map Key . Set.toList $ rs) | (decl, rs) <- pairs]
   let sccs = stronglyConnComp graph
   -- Report circularity errors
-  mapM_ (report . ECircRef . show . length)
+  mapM_ (report . Err ECircRef Nothing Nothing . Just . show . length)
     . filter (any $ not . allowInCycles)
     . map flattenSCC
     . filter isCycle
