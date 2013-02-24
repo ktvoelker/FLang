@@ -11,6 +11,9 @@ import Token
 
 type Parser = Parsec [(Token, SourcePos)] ()
 
+instance MonadSourcePos Parser where
+  getSourcePos = getPosition
+
 parse :: String -> [(Token, SourcePos)] -> FM ModDecl
 parse name xs = case P.parse file name xs of
   Left err -> fatal $ EParser err
@@ -25,44 +28,52 @@ tokWhen msg pred = tok msg $ \t -> if pred t then Just t else Nothing
 tokEq :: Token -> Parser ()
 tokEq t = tokWhen (show t) (== t) >> return ()
 
+parens :: Parser a -> Parser a
 parens = between (kw "(") (kw ")")
 
+braces :: Parser a -> Parser a
 braces = between (kw "{") (kw "}")
 
+file :: Parser ModDecl
 file = fileDecl >>= (eof >>) . return
 
+kw :: String -> Parser ()
 kw xs = tok ("'" ++ xs ++ "'") $ \t -> case t of
   TKeyword ys | xs == ys -> Just ()
   TId ys | xs == ys -> Just ()
   TExprOp ys | xs == ys -> Just ()
   _ -> Nothing
 
+genModHeader :: String -> Parser Binder
 genModHeader word = do
   kw word
   n <- bindName
-  t <- optionMaybe hasTy
-  return $ Binder n t
+  Binder n <$> optionMaybe hasTy
 
+modHeader :: Parser Binder
 modHeader = genModHeader "module"
 
+sigHeader :: Parser Binder
 sigHeader = genModHeader "sig"
 
 modExpr :: Parser ModExpr
-modExpr =
+modExpr = locate $ do
   do
     kw "fn"
     ps <- many valParam
     kw "->"
-    fmap (Lam ps) modExpr
+    mkLam ps <$> modExpr
   <|>
-  fmap Record (kw "rec" >> braces (many modDecl))
+  fmap mkRecord (kw "rec" >> braces (many modDecl))
   <|>
   do
     (x : xs) <- many1 modPrim
-    return $ App x xs
+    return $ mkApp x xs
 
+modPrim :: Parser ModExpr
 modPrim = ref <|> parens modExpr
 
+dataMode :: Parser DataMode
 dataMode =
   choice
   . map (\(w, e) -> kw w >> return e)
@@ -70,11 +81,14 @@ dataMode =
     , ("closed", DataClosed)
     ]
 
+parentTy :: Parser TyExpr
 parentTy = kw "<:" >> ty
 
+hasTy :: Parser TyExpr
 hasTy = kw ":" >> ty
 
-valParam =
+valParam :: Parser Binder
+valParam = do
   fmap (flip Binder Nothing) bindName
   <|>
   do
@@ -84,6 +98,7 @@ valParam =
     kw ")"
     return $ Binder n t
 
+infixAssoc :: Parser InfixAssoc
 infixAssoc =
   choice
   . map (\(w, e) -> kw w >> return e)
@@ -91,15 +106,17 @@ infixAssoc =
     , ("right", InfixRight)
     ]
 
+dataDecl :: Parser (Maybe TyExpr) -> Parser ModDecl
 dataDecl par = do
   o <- optionMaybe dataMode
   n <- bindName
   p <- par
   t <- optionMaybe $ kw "is" >> ty
   c <- (kw ";" >> return []) <|> (braces . many . dataDecl $ return Nothing)
-  return $ Data (maybe DataClosed id o) n p (maybe (Prim TyEmpty) id t) c
+  return $ mkData (maybe DataClosed id o) n p (maybe (mkPrim TyEmpty) id t) c
 
-modDecl =
+modDecl :: Parser ModDecl
+modDecl = locate $ do
   fileDecl
   <|>
   do
@@ -107,7 +124,7 @@ modDecl =
     n <- bindName
     t <- optionMaybe hasTy
     kw "is"
-    fmap (BindVal . (Binding $ Binder n t)) valPrimEnd
+    fmap (mkBindVal . (Binding $ Binder n t)) valPrimEnd
   <|>
   do
     kw "data"
@@ -120,7 +137,7 @@ modDecl =
     kw "is"
     rhs <- ty
     kw ";"
-    return $ BindTy (Binding (Binder n lhs) rhs)
+    return $ mkBindTy (Binding (Binder n lhs) rhs)
   <|>
   do
     kw "infix"
@@ -130,37 +147,44 @@ modDecl =
       _ -> Nothing
     bs <- many1 bindName
     kw ";"
-    return $ Infix (maybe InfixNone id a) n bs
+    return $ mkInfix (maybe InfixNone id a) n bs
 
+fileDecl :: Parser ModDecl
 fileDecl =
   do
     h <- modHeader
     kw "is"
-    fmap (BindMod . Binding h) modExpr
+    fmap (mkBindMod . Binding h) modExpr
   <|>
   do
     h <- sigHeader
     kw "is"
     kw "rec"
-    fmap (BindSig . Binding h . Record) . braces . semi $ sigDecl
+    fmap (mkBindSig . Binding h . mkRecord) . braces . semi $ sigDecl
 
+ident :: Parser String
 ident = tok "identifier" $ \t -> case t of
   TId xs -> Just xs
   _ -> Nothing
 
+oper :: Parser String
 oper = tok "operator" $ \t -> case t of
   TExprOp xs -> Just xs
   _ -> Nothing
 
-bindName = fmap BindName $ ident <|> parens oper
+bindName :: Parser BindName
+bindName = fmap mkBindName $ ident <|> parens oper
 
-ref = fmap (Ref . BindName) ident
+ref :: Parser (Expr d e)
+ref = fmap (mkRef . mkBindName) ident
 
+tyRel :: Parser TyBound
 tyRel = do
   o <- tyCompOp
   t <- ty
-  return $ TyBound o t
+  return $ mkTyBound o t
 
+tyCompOp :: Parser TyCompOp
 tyCompOp =
   choice
   . map (\(w, e) -> kw w >> return e)
@@ -169,69 +193,76 @@ tyCompOp =
     , (":", OpEqualTy)
     ]
 
+sigDecl :: Parser SigDecl
 sigDecl =
   do
     kw "val"
     n <- bindName
     t <- hasTy
-    return $ SigVal n t
+    return $ mkSigVal n t
   <|>
   do
     kw "type"
     n <- bindName
     t <- optionMaybe tyRel
-    return $ SigTy n t
+    return $ mkSigTy n t
   <|>
   do
     kw "module"
     n <- bindName
     t <- hasTy
-    return $ SigMod n t
+    return $ mkSigMod n t
 
+valExpr :: Parser ValExpr
 valExpr = expr "expression" valOp valPrim
 
+valOp :: Parser ValExpr
 valOp = tok "operator" $ \t -> case t of
-  TExprOp xs -> Just . Ref . BindName $ xs
+  TExprOp xs -> Just . mkRef . mkBindName $ xs
   _ -> Nothing
 
+expr :: String -> Parser (Expr d e) -> Parser (Expr d e) -> Parser (Expr d e)
 expr descr op prim =
   do
     h <- exprApp prim
     t <- many $ exprOp op prim
-    return $ OpChain (Just h) t
+    return $ mkOpChain (Just h) t
   <|>
   do
     t <- many1 $ exprOp op prim
-    return $ OpChain Nothing t
+    return $ mkOpChain Nothing t
   <?>
   descr
 
+exprOp :: Parser (Expr d e) -> Parser (Expr d e) -> Parser (Expr d e, Expr d e)
 exprOp op prim = do
   o <- op
   a <- exprApp prim
   return (o, a)
 
+exprApp :: Parser (Expr d e) -> Parser (Expr d e)
 exprApp prim = do
   h <- exprMember prim
   t <- many $ exprMember prim
-  return $ App h t
+  return $ mkApp h t
 
 exprMember prim = do
   h <- prim
   t <- many $ kw "." >> bindName
-  return $ foldl Member h t
+  return $ foldl mkMember h t
 
 localBind = do
   n <- bindName
   t <- optionMaybe hasTy
   kw "is"
   e <- valExpr
-  return . BindLocalVal $ Binding (Binder n t) e
+  return . mkBindLocalVal $ Binding (Binder n t) e
 
 semi = (`sepEndBy1` kw ";")
 
 localBinds = semi localBind
 
+exprLam :: Parser ValExpr
 exprLam = kw "fn" >> (lamCase <|> lamPlain)
   where
     lamCase = do
@@ -240,12 +271,12 @@ exprLam = kw "fn" >> (lamCase <|> lamPlain)
        - an expression rather than a block of clauses.
        --}
       try $ kw "{"
-      e <- Prim . LamCase <$> many1 (genCaseClause $ PatParams <$> many1 pat)
+      e <- mkPrim . mkLamCase <$> many1 (genCaseClause $ mkPatParams <$> many1 pat)
       kw "}"
       return e
     lamPlain = do
       ps <- many valParam
-      fmap (Lam ps) valPrimEnd
+      mkLam ps <$> valPrimEnd
 
 genCaseClause :: Parser Pat -> Parser CaseClause
 genCaseClause pat =
@@ -253,61 +284,71 @@ genCaseClause pat =
     kw "if"
     p <- pat
     kw "then"
-    CaseClause p <$> valPrimEnd
+    mkCaseClause p <$> valPrimEnd
   <|>
   do
     kw "else"
-    CaseClause PatIgnore <$> valPrimEnd
+    mkCaseClause mkPatIgnore <$> valPrimEnd
 
-exprCase = fmap Prim $ do
+exprCase :: Parser ValExpr
+exprCase = mkPrim <$> do
   kw "case"
   s <- valExpr
   kw "of"
-  cs <- braces . many1 $ genCaseClause patApp
-  return $ Case s cs
+  fmap (mkCase s) . braces . many1 $ genCaseClause patApp
 
-exprRec = fmap Record $ kw "rec" >> braces localBinds
+exprRec :: Parser ValExpr
+exprRec = fmap mkRecord $ kw "rec" >> braces localBinds
 
+exprBegin :: Parser ValExpr
 exprBegin = braces valExpr
 
-exprLit = fmap Prim . tok "literal primitive" $ \t -> case t of
-  TInt n -> Just $ EInt n
-  TFloat n -> Just $ EFloat n
-  TString xs -> Just $ EString xs
-  TChar c -> Just $ EChar c
+exprLit :: Parser ValExpr
+exprLit = fmap mkPrim . tok "literal primitive" $ \t -> case t of
+  TInt n -> Just $ mkEInt n
+  TFloat n -> Just $ mkEFloat n
+  TString xs -> Just $ mkEString xs
+  TChar c -> Just $ mkEChar c
   _ -> Nothing
 
+valPrimBlock :: Parser ValExpr
 valPrimBlock = choice [exprLam, exprCase, exprRec, exprBegin, exprDo, exprLet]
 
+valPrimEnd :: Parser ValExpr
 valPrimEnd = valPrimBlock <|> do
   e <- valExpr
   kw ";"
   return e
 
-valPrim = choice [valPrimBlock, ref, exprLit, kw "?" >> return ToDo, parens valExpr]
+valPrim :: Parser ValExpr
+valPrim = choice [valPrimBlock, ref, exprLit, kw "?" >> return mkToDo, parens valExpr]
 
-exprDo = fmap (Prim . Do) $ kw "do" >> braces (semi doElem)
+exprDo :: Parser ValExpr
+exprDo = fmap (mkPrim . mkDo) $ kw "do" >> braces (semi doElem)
 
+exprLet :: Parser ValExpr
 exprLet = do
   kw "let"
   bs <- localBinds
   kw "in"
   e <- valPrimEnd
-  return $ Let bs e
+  return $ mkLet bs e
 
+doElem :: Parser DoElem
 doElem =
-  fmap DoLet (kw "let" >> braces localBinds)
+  fmap mkDoLet (kw "let" >> braces localBinds)
   <|>
   do
     p <- patApp
     kw "<-"
     e <- valExpr
-    return $ DoBind p e
+    return $ mkDoBind p e
   <|>
-  fmap DoExpr valExpr
+  fmap mkDoExpr valExpr
   <?>
   "do-element"
 
+pat :: Parser Pat
 pat =
   {--
    - We have to backtrack if this fails because it might have consumed a
@@ -321,27 +362,31 @@ pat =
   <?>
   "pattern"
 
+patLit :: Parser Pat
 patLit = tok "literal primitive pattern" $ \t -> case t of
-  TInt n -> Just $ PatInt n
-  TString xs -> Just $ PatString xs
-  TChar c -> Just $ PatChar c
+  TInt n -> Just $ mkPatInt n
+  TString xs -> Just $ mkPatString xs
+  TChar c -> Just $ mkPatChar c
   _ -> Nothing
 
+patName :: Parser Pat
 patName = do
   ns <- bindName `sepEndBy1` kw "."
   return $ case ns of
     [] -> error "Impossible!"
-    [n] | namespace n == NsValues -> PatBind n
-    (n : ns) -> PatApp (foldl Member (Ref n) ns) []
+    [n] | namespace n == NsValues -> mkPatBind n
+    (n : ns) -> mkPatApp (foldl mkMember (mkRef n) ns) []
 
+patApp :: Parser Pat
 patApp = do
   ns <- bindName `sepEndBy1` kw "."
   ps <- many pat
   return $ case ns of
     [] -> error "Impossible!"
-    [n] | null ps && namespace n == NsValues -> PatBind n
-    (n : ns) -> PatApp (foldl Member (Ref n) ns) ps
+    [n] | null ps && namespace n == NsValues -> mkPatBind n
+    (n : ns) -> mkPatApp (foldl mkMember (mkRef n) ns) ps
 
+ty :: Parser TyExpr
 ty = do
   qs <- tyQuants
   co <- tyCore
@@ -349,40 +394,46 @@ ty = do
   let
   { qf = case qs of
       [] -> id
-      _ -> Lam qs
+      _ -> mkLam qs
   }
   return $ qf $ case cs of
     [] -> co
-    _ -> Let cs co
+    _ -> mkLet cs co
 
+tyQuants :: Parser [Binder]
 tyQuants =
   fmap (maybe [] $ map $ flip Binder Nothing)
   $ optionMaybe
   $ between (kw "forall") (kw ".")
   $ many1 bindName
 
+tyCore :: Parser TyExpr
 tyCore = expr "type" tyOp tyPrim
 
-tyOp = kw "->" >> return (Prim TyFn)
+tyOp :: Parser TyExpr
+tyOp = kw "->" >> return (mkPrim TyFn)
 
+tyPrim :: Parser TyExpr
 tyPrim =
   parens tyCore
   <|>
-  (kw "*" >> return (Prim TyAuto))
+  (kw "*" >> return (mkPrim TyAuto))
   <|>
   tyRec
   <|>
   ref
 
-tyRec = fmap Record $ between (kw "rec") (kw "end") $ semi $ do
+tyRec :: Parser TyExpr
+tyRec = fmap mkRecord $ between (kw "rec") (kw "end") $ semi $ do
   n <- bindName
   t <- hasTy
-  return $ FieldDecl n t
+  return $ mkFieldDecl n t
 
+tyConstr :: Parser TyDecl
 tyConstr = do
   kw "with"
   lhs <- tyCore
   op <- tyCompOp
   rhs <- tyCore
-  return $ Constraint lhs op rhs
+  return $ mkConstraint lhs op rhs
 

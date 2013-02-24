@@ -22,7 +22,7 @@ parsePhase = lexPhase' >=> mapM (uncurry parse)
   where
     lexPhase' xs = fmap (zip $ map fst xs) . lexPhase $ xs
 
-renamePhase = parsePhase >=> rename . Record
+renamePhase = parsePhase >=> rename . mkRecord
 
 phases =
   [ ("lex", runPhase $ lexPhase >=> return . concatMap ppShow)

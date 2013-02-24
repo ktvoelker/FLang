@@ -1,18 +1,26 @@
 
 module Syntax (
   -- * Common types
-    No(), Namespace(..), BindName(..), namespace, Binder(..), Binding(..)
-  , HasBindNames(..)
+    No(), Namespace(..), BindName(..), mkBindName, mkUniqueName, namespace, Binder(..)
+  , Binding(..), HasBindNames(..)
   -- * Generic expressions and declarations
-  , Expr(..), Decl(..)
+  , Expr(..), mkRef, mkMember, mkLet, mkLam, mkRecord, mkApp, mkPrim, mkOpChain, mkToDo
+  , Decl(..)
   -- * Sigs
-  , SigDecl(..), SigExpr, SigBinding
+  , SigDecl(..), mkSigMod, mkSigVal, mkSigTy, SigExpr, SigBinding
   -- * Modules
-  , ModDecl(..), ModExpr, ModBinding, OpenQual(..), DataMode(..), InfixAssoc(..)
+  , ModDecl(..), mkBindMod, mkBindSig, mkBindVal, mkBindTy, mkData, mkInfix, ModExpr
+  , ModBinding, OpenQual(..), DataMode(..), InfixAssoc(..)
   -- * Types
-  , TyPrim(..), TyBound(..), TyCompOp(..), TyDecl(..), TyExpr, TyBinding
+  , TyPrim(..), TyBound(..), mkTyBound, TyCompOp(..), TyDecl(..), mkFieldDecl
+  , mkConstraint, TyExpr, TyBinding
   -- * Values
-  , ValPrim(..), ValDecl(..), ValExpr, ValBinding, CaseClause(..), DoElem(..), Pat(..)
+  , ValPrim(..), mkCase, mkLamCase, mkEInt, mkEFloat, mkEString, mkEChar, mkDo
+  , ValDecl(..)
+  , mkBindLocalVal, ValExpr, ValBinding, CaseClause(..), mkCaseClause, DoElem(..)
+  , mkDoExpr, mkDoBind, mkDoLet
+  , Pat(..), mkPatBind, mkPatApp, mkPatIgnore, mkPatParams, mkPatInt, mkPatString
+  , mkPatChar
   -- * Type aliases
   , Program
   -- * Pretty-printing

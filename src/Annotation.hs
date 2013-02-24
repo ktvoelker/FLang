@@ -21,22 +21,30 @@ class Annotated a where
 --   of the real constructor except the Ann, plus emptyAnn at the end. Constructors
 --   declared as records will have a randomly-generated unique name for the Ann field.
 annotate :: Q [Dec] -> Q [Dec]
-annotate = (>>= return . concat) . (>>= mapM annotate1)
+annotate = annotateWhen $ const True
 
-annotateExcept _ = annotate
+annotateExcept :: [String] -> Q [Dec] -> Q [Dec]
+annotateExcept names = annotateWhen $ \dec -> case dec of
+  DataD _ name _ _ _ -> not $ nameBase name `elem` names
+  NewtypeD _ name _ _ _ -> not $ nameBase name `elem` names
+  _ -> True
 
-annotate1 :: Dec -> Q [Dec]
-annotate1 (DataD cxt name tvs cons dvs) = do
+annotateWhen :: (Dec -> Bool) -> Q [Dec] -> Q [Dec]
+annotateWhen pred = (>>= return . concat) . (>>= mapM (annotate1 pred))
+
+annotate1 :: (Dec -> Bool) -> Dec -> Q [Dec]
+annotate1 pred decl | not $ pred decl = return [decl]
+annotate1 _ (DataD cxt name tvs cons dvs) = do
     cons'  <- mapM annotateCon cons
     let smarts = catMaybes $ map (fmap mkSmartCon . conName) cons
     inst   <- mkAnnInst name (length tvs) cons
     return $ inst : DataD cxt name tvs cons' dvs : smarts
-annotate1 (NewtypeD cxt name tvs con dvs) = do
+annotate1 _ (NewtypeD cxt name tvs con dvs) = do
     con'  <- annotateCon con
     let smart = maybeToList $ fmap mkSmartCon $ conName con
     inst  <- mkAnnInst name (length tvs) [con]
     return $ inst : NewtypeD cxt name tvs con' dvs : smart
-annotate1 d = return [d]
+annotate1 _ d = return [d]
 
 annotateCon :: Con -> Q Con
 annotateCon (NormalC name tys) = return $ NormalC name $ (NotStrict, ConT ''Ann) : tys

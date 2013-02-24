@@ -39,14 +39,14 @@ instance Pretty No SyntaxKind where
   tokens _ = return ()
 
 instance Pretty Binder SyntaxKind where
-  tokens (Binder _ name Nothing) = tokens name
-  tokens (Binder _ name (Just ty)) = tellBrackets "(" ")" $ do
+  tokens (Binder name Nothing) = tokens name
+  tokens (Binder name (Just ty)) = tellBrackets "(" ")" $ do
     tokens name
     colon
     tokens ty
 
 instance (Pretty e SyntaxKind) => Pretty (Binding e) SyntaxKind where
-  tokens (Binding (Binder _ name ty) rhs) = do
+  tokens (Binding (Binder name ty) rhs) = do
     tokens name
     whenJust ty $ \ty -> colon >> tokens ty
     tt "is"

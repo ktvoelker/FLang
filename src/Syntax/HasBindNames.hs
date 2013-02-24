@@ -11,7 +11,7 @@ instance HasBindNames BindName where
   bindNames name = [name]
 
 instance HasBindNames Binder where
-  bindNames (Binder _ n _) = [n]
+  bindNames (Binder n _) = [n]
 
 instance HasBindNames (Binding e) where
   bindNames (Binding b _) = bindNames b
