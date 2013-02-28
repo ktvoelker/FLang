@@ -17,7 +17,7 @@ data Err =
   , errSourcePos :: Maybe SourcePos
   , errName      :: Maybe BindName
   , errMore      :: Maybe String
-  } deriving (Eq, Ord, Show)
+  } deriving (Show)
 
 newtype FM a = FM { getFM :: Writer [Err] (Maybe a) }
 

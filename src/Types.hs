@@ -13,7 +13,7 @@ data Global =
   Global
   { _gRoot       :: Program
   , _gNextUnique :: Integer
-  } deriving (Eq, Ord, Show)
+  }
 
 emptyGlobal root = Global root 0
 

@@ -48,22 +48,19 @@ instance RenameDecl ModDecl where
     return $ Data a m n' p' t' ds'
   renameDecl (Infix ann a p ns) = Infix ann a p <$> mapM renameNameRef ns
 
-instance RenameDecl SigDecl where
-  renameDecl (SigVal a n e) = SigVal a <$> renameNameBind n <*> renameExpr e
-  renameDecl (SigTy a n ty) = SigTy a <$> renameNameBind n <*> ty'
-    where
-      ty' = case ty of
-        Nothing -> pure Nothing
-        Just (TyBound a o e) -> Just . TyBound a o <$> renameExpr e
-  renameDecl (SigMod a n e) = SigMod a <$> renameNameBind n <*> renameExpr e
-
 instance RenameDecl ValDecl where
   renameDecl (BindLocalVal a b) = BindLocalVal a <$> renameBinding b
 
 instance RenameDecl TyDecl where
-  renameDecl (FieldDecl a n e) = FieldDecl a <$> renameNameBind n <*> renameExpr e
   renameDecl (Constraint ann a o b) =
     Constraint ann <$> renameExpr a <*> pure o <*> renameExpr b
+  renameDecl (ValField a n e) = ValField a <$> renameNameBind n <*> renameExpr e
+  renameDecl (TyField a n ty) = TyField a <$> renameNameBind n <*> ty'
+    where
+      ty' = case ty of
+        Nothing -> pure Nothing
+        Just (TyBound a o e) -> Just . TyBound a o <$> renameExpr e
+  renameDecl (ModField a n e) = ModField a <$> renameNameBind n <*> renameExpr e
 
 renameBinding
   :: (RenameDecl d, RenamePrim e) => Binding (Expr d e) -> M (Binding (Expr d e))

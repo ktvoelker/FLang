@@ -1,4 +1,5 @@
 
+{-# LANGUAGE UndecidableInstances #-}
 module Syntax.Pretty where
 
 import Common
@@ -38,14 +39,14 @@ tellBrackets lb rb m = do
 instance Pretty No SyntaxKind where
   tokens _ = return ()
 
-instance Pretty Binder SyntaxKind where
+instance (Pretty (Expr k) SyntaxKind) => Pretty (Binder k) SyntaxKind where
   tokens (Binder name Nothing) = tokens name
   tokens (Binder name (Just ty)) = tellBrackets "(" ")" $ do
     tokens name
     colon
     tokens ty
 
-instance (Pretty e SyntaxKind) => Pretty (Binding e) SyntaxKind where
+instance (Pretty (Expr k) SyntaxKind) => Pretty (Binding k) SyntaxKind where
   tokens (Binding (Binder name ty) rhs) = do
     tokens name
     whenJust ty $ \ty -> colon >> tokens ty
@@ -88,27 +89,6 @@ instance Pretty ModDecl SyntaxKind where
     mapM_ tokens bs
     semi
 
-instance Pretty SigDecl SyntaxKind where
-  tokens (SigVal _ name ty) = do
-    tt "val"
-    tokens name
-    colon
-    tokens ty
-    semi
-  tokens (SigTy _ name bound) = do
-    tt "type"
-    tokens name
-    whenJust bound $ \(TyBound _ op ty) -> do
-      tokens op
-      tokens ty
-    semi
-  tokens (SigMod _ name ty) = do
-    tt "module"
-    tokens name
-    colon
-    tokens ty
-    semi
-
 instance Pretty ValDecl SyntaxKind where
   tokens (BindLocalVal _ b) = tokens b
 
@@ -119,7 +99,21 @@ instance Pretty TyCompOp SyntaxKind where
     OpEqualTy -> ":"
 
 instance Pretty TyDecl SyntaxKind where
-  tokens (FieldDecl _ name ty) = do
+  tokens (ValField _ name ty) = do
+    tt "val" -- TODO no "val" when inside a val record
+    tokens name
+    colon
+    tokens ty
+    semi
+  tokens (TyField _ name bound) = do
+    tt "type"
+    tokens name
+    whenJust bound $ \(TyBound _ op ty) -> do
+      tokens op
+      tokens ty
+    semi
+  tokens (ModField _ name ty) = do
+    tt "module"
     tokens name
     colon
     tokens ty
@@ -131,8 +125,8 @@ instance Pretty TyDecl SyntaxKind where
     tokens b
 
 instance
-  (Pretty d SyntaxKind, Pretty e SyntaxKind)
-  => Pretty (Expr d e) SyntaxKind where
+  (Pretty (ExprDecl k) SyntaxKind, Pretty (ExprPrim k) SyntaxKind)
+  => Pretty (Expr k) SyntaxKind where
   tokens (Lam _ ps e) = tellBrackets "(" ")" $ do
     tt "fn"
     mapM_ tokens ps

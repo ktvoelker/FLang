@@ -6,14 +6,12 @@ module Syntax (
   -- * Generic expressions and declarations
   , Expr(..), mkRef, mkMember, mkLet, mkLam, mkRecord, mkApp, mkPrim, mkOpChain, mkToDo
   , Decl(..)
-  -- * Sigs
-  , SigDecl(..), mkSigMod, mkSigVal, mkSigTy, SigExpr, SigBinding
   -- * Modules
   , ModDecl(..), mkBindMod, mkBindSig, mkBindVal, mkBindTy, mkData, mkInfix, ModExpr
   , ModBinding, OpenQual(..), DataMode(..), InfixAssoc(..)
   -- * Types
-  , TyPrim(..), TyBound(..), mkTyBound, TyCompOp(..), TyDecl(..), mkFieldDecl
-  , mkConstraint, TyExpr, TyBinding
+  , TyPrim(..), TyBound(..), mkTyBound, TyCompOp(..), TyDecl(..), mkConstraint
+  , mkValField, mkModField, mkTyField, TyExpr, TyBinding
   -- * Values
   , ValPrim(..), mkCase, mkLamCase, mkEInt, mkEFloat, mkEString, mkEChar, mkDo
   , ValDecl(..)
@@ -35,21 +33,17 @@ import Syntax.Types
 
 type Program = ModExpr
 
-type ModBinding = Binding ModExpr
+type ModBinding = Binding ModK
 
-type SigBinding = Binding SigExpr
+type ValBinding = Binding ValK
 
-type ValBinding = Binding ValExpr
+type TyBinding = Binding TyK
 
-type TyBinding = Binding TyExpr
+type ModExpr = Expr ModK
 
-type ModExpr = Expr ModDecl No
+type ValExpr = Expr ValK
 
-type SigExpr = Expr SigDecl No
-
-type ValExpr = Expr ValDecl ValPrim
-
-type TyExpr = Expr TyDecl TyPrim
+type TyExpr = Expr TyK
 
 namespace (BindName _ (x : _)) | isUpper x = NsTys
 namespace _ = NsValues

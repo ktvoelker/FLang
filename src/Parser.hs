@@ -193,25 +193,25 @@ tyCompOp =
     , (":", OpEqualTy)
     ]
 
-sigDecl :: Parser SigDecl
+sigDecl :: Parser TyDecl
 sigDecl =
   do
     kw "val"
     n <- bindName
     t <- hasTy
-    return $ mkSigVal n t
+    return $ mkValField n t
   <|>
   do
     kw "type"
     n <- bindName
     t <- optionMaybe tyRel
-    return $ mkSigTy n t
+    return $ mkTyField n t
   <|>
   do
     kw "module"
     n <- bindName
     t <- hasTy
-    return $ mkSigMod n t
+    return $ mkModField n t
 
 valExpr :: Parser ValExpr
 valExpr = expr "expression" valOp valPrim

@@ -10,10 +10,10 @@ class HasBindNames a where
 instance HasBindNames BindName where
   bindNames name = [name]
 
-instance HasBindNames Binder where
+instance HasBindNames (Binder k) where
   bindNames (Binder n _) = [n]
 
-instance HasBindNames (Binding e) where
+instance HasBindNames (Binding k) where
   bindNames (Binding b _) = bindNames b
 
 instance HasBindNames ModDecl where
@@ -24,16 +24,14 @@ instance HasBindNames ModDecl where
   bindNames (Data _ _ n _ _ ds) = n : concatMap bindNames ds
   bindNames (Infix _ _ _ _) = []
 
-instance HasBindNames SigDecl where
-  bindNames (SigVal _ n _) = [n]
-  bindNames (SigTy _ n _) = [n]
-  bindNames (SigMod _ n _) = [n]
-
 instance HasBindNames ValDecl where
   bindNames (BindLocalVal _ b) = bindNames b
 
 instance HasBindNames TyDecl where
-  bindNames = const []
+  bindNames (Constraint _ _ _ _) = []
+  bindNames (ValField _ n _) = [n]
+  bindNames (ModField _ n _) = [n]
+  bindNames (TyField _ n _) = [n]
 
 instance HasBindNames Pat where
   bindNames (PatParams _ ps) = ps >>= bindNames
