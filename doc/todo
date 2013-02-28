@@ -2,12 +2,11 @@
 TO-DO
 =====
 
-Unify sigs and types
+Finish unifying sigs and types
 
-  Use the unified system to implement kinds
+  Consider changing the parameter of Binder to be the type type and not the expr type
 
-  We should have another parameter of Expr which is the static type of types for that
-  sort of expr.
+  Implement remaining functions
 
 Try to move most primitive exprs constructors into the generic expr type
 
@@ -16,6 +15,8 @@ Eliminate redundancy between literals in exprs and patterns
 Implement instance Pretty Err
 
 Write the module type-checker
+
+Write the infix operator analysis phase
 
 Write the type type-checker
 
@@ -29,6 +30,8 @@ Write the value type-checker
 Improve the ECirc errors in the sorter
 
 Consider requiring a special symbol to be prefixed onto any global Ref
+
+Write a structural recursion check as an alternative to the cycle check
 
 Pretty-printer
 
