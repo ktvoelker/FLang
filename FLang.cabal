@@ -44,6 +44,7 @@ Executable fc
     ScopedTypeVariables
     FlexibleInstances
     FlexibleContexts
+    DataKinds
     TypeFamilies
     StandaloneDeriving
   other-extensions:

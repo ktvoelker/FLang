@@ -5,6 +5,17 @@ module Syntax.Types where
 import Annotation
 import Import
 
+data ExprKind = ModK | ValK | TyK | KindK | NoK
+
+type family ExprTy (k :: ExprKind) :: ExprKind
+
+type family ExprDecl (k :: ExprKind) :: *
+
+type family ExprPrim (k :: ExprKind) :: *
+
+data KindPrim = KVal | KMod | KValFn | KModFn
+  deriving (Eq, Ord, Enum, Bounded, Show)
+
 data No
 
 instance Eq No where
@@ -119,5 +130,20 @@ annotate [d|
     | PatChar Char
     | PatIgnore
     deriving (Eq, Ord, Show)
+
+  type instance ExprTy ModK  = TyK
+  type instance ExprTy ValK  = TyK
+  type instance ExprTy TyK   = KindK
+  type instance ExprTy KindK = NoK
+
+  type instance ExprDecl ModK  = ModDecl
+  type instance ExprDecl ValK  = ValDecl
+  type instance ExprDecl TyK   = TyDecl
+  type instance ExprDecl KindK = No
+
+  type instance ExprPrim ModK  = No
+  type instance ExprPrim ValK  = ValPrim
+  type instance ExprPrim TyK   = TyPrim
+  type instance ExprPrim KindK = KindPrim
 
   |]
