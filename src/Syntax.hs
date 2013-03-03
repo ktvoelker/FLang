@@ -7,7 +7,7 @@ module Syntax (
   , ExprKind(..), ExprTag(..), exprTag, ExprTy, ExprDecl, ExprPrim, Expr(..), mkRef
   , mkMember, mkLet, mkLam, mkRecord, mkApp, mkPrim, mkOpChain, mkToDo, Decl(..)
   -- * Kinds
-  , KindPrim(..)
+  , KindPrim(..), KindExpr
   -- * Types
   , TyPrim(..), TyBound(..), mkTyBound, TyCompOp(..), TyDecl(..), mkConstraint
   , mkValField, mkModField, mkTyField, TyExpr, TyBinding
@@ -46,6 +46,8 @@ type ModExpr = Expr ModK
 type ValExpr = Expr ValK
 
 type TyExpr = Expr TyK
+
+type KindExpr = Expr KindK
 
 namespace (BindName _ (x : _)) | isUpper x = NsTys
 namespace _ = NsValues

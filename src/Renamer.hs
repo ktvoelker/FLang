@@ -35,22 +35,23 @@ class (Decl a) => RenameDecl a where
 class RenamePrim a where
   renamePrim :: a -> M a
 
-class
-  ( RenameDecl (ExprDecl k)
-  , RenamePrim (ExprPrim k)
-  , RenameDecl (ExprDecl (ExprTy k))
-  , RenamePrim (ExprPrim (ExprTy k))
-  ) => RenameExpr k where
+class RenameExpr k where
+  renameExpr :: Expr k -> M (Expr k)
 
 instance RenameExpr ModK where
+  renameExpr = genRenameExpr
 
 instance RenameExpr ValK where
+  renameExpr = genRenameExpr
 
 instance RenameExpr TyK where
+  renameExpr = genRenameExpr
 
 instance RenameExpr KindK where
+  renameExpr = todo
 
 instance RenameExpr NoK where
+  renameExpr = todo
 
 instance RenameDecl No where
   renameDecl _ = undefined
@@ -82,7 +83,7 @@ instance RenameDecl TyDecl where
         Just (TyBound a o e) -> Just . TyBound a o <$> renameExpr e
   renameDecl (ModField a n e) = ModField a <$> renameNameBind n <*> renameExpr e
 
-renameBinding :: (RenameExpr k) => Binding k -> M (Binding k)
+renameBinding :: (RenameExpr k, RenameExpr (ExprTy k)) => Binding k -> M (Binding k)
 renameBinding (Binding (Binder n t) e) = do
   n' <- renameNameBind n
   t' <- maybe (return Nothing) (fmap Just . renameExpr) t
@@ -112,20 +113,10 @@ renameNameRef n = do
 renameNameBind :: BindName -> M BindName
 renameNameBind = renameNameFrom eBinds
 
-renameBinders
-  :: ( RenameDecl (ExprDecl k)
-     , RenamePrim (ExprPrim k)
-     , RenameDecl (ExprDecl (ExprTy k))
-     , RenamePrim (ExprPrim (ExprTy k))
-     ) => [Binder k] -> M [Binder k]
+renameBinders :: (RenameExpr k, RenameExpr (ExprTy k)) => [Binder k] -> M [Binder k]
 renameBinders = mapM renameBinder
 
-renameBinder
-  :: ( RenameDecl (ExprDecl k)
-     , RenamePrim (ExprPrim k)
-     , RenameDecl (ExprDecl (ExprTy k))
-     , RenamePrim (ExprPrim (ExprTy k))
-     ) => Binder k -> M (Binder k)
+renameBinder :: (RenameExpr k, RenameExpr (ExprTy k)) => Binder k -> M (Binder k)
 renameBinder (Binder name ty) =
   Binder <$> renameNameBind name <*> mapM renameExpr ty
 
@@ -147,27 +138,34 @@ renameSortDecls
   => ExprTag k -> [ExprDecl k] -> M [ExprDecl k]
 renameSortDecls _ ds = mapM (branch . renameDecl) ds >>= lift3 . sortDecls
 
-renameExpr :: (RenameExpr k) => Expr k -> M (Expr k)
-renameExpr (Lam a bs e) = do
+genRenameExpr
+  :: ( RenameExpr k
+     , RenameExpr (ExprTy k)
+     , HasBindNames (ExprDecl k)
+     , RenameDecl (ExprDecl k)
+     , RenamePrim (ExprPrim k)
+     )
+  => Expr k -> M (Expr k)
+genRenameExpr (Lam a bs e) = do
   env' <- makeBindEnv bs
-  local (const env') $ Lam a <$> renameBinders bs <*> withBindsInScope (renameExpr e)
-renameExpr (App a f as) = App a <$> renameExpr f <*> mapM renameExpr as
-renameExpr e@(Record a ds) = do
+  local (const env') $ Lam a <$> renameBinders bs <*> withBindsInScope (genRenameExpr e)
+genRenameExpr (App a f as) = App a <$> renameExpr f <*> mapM renameExpr as
+genRenameExpr e@(Record a ds) = do
   env' <- makeRecEnv ds
   Record a <$> local (const env') (renameSortDecls (exprTag e) ds)
-renameExpr (Ref a n) = Ref a <$> renameNameRef n
-renameExpr e@(UniqueRef _ _) = return e
-renameExpr (Member a e n) = Member a <$> renameExpr e <*> pure n
-renameExpr (OpChain a e os) = OpChain a <$> mapM renameExpr e <*> mapM f os
+genRenameExpr (Ref a n) = Ref a <$> renameNameRef n
+genRenameExpr e@(UniqueRef _ _) = return e
+genRenameExpr (Member a e n) = Member a <$> renameExpr e <*> pure n
+genRenameExpr (OpChain a e os) = OpChain a <$> mapM renameExpr e <*> mapM f os
   where
-    f (a, b) = (,) <$> renameExpr a <*> renameExpr b
-renameExpr (Let a ds e) = do
+    f (a, b) = (,) <$> genRenameExpr a <*> renameExpr b
+genRenameExpr (Let a ds e) = do
   env' <- makeRecEnv ds
   ds' <- local (const env') $ renameSortDecls (exprTag e) ds
-  e' <- local (const env') $ renameExpr e
+  e' <- local (const env') $ genRenameExpr e
   Let a <$> pure ds' <*> pure e'
-renameExpr (Prim a p) = Prim a <$> renamePrim p
-renameExpr e@(ToDo _) = return e
+genRenameExpr (Prim a p) = Prim a <$> renamePrim p
+genRenameExpr e@(ToDo _) = return e
 
 instance RenamePrim No where
   renamePrim no = do

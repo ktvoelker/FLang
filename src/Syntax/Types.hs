@@ -127,12 +127,12 @@ annotate [d|
   type instance ExprDecl ValK  = ValDecl
   type instance ExprDecl TyK   = TyDecl
   type instance ExprDecl KindK = No
-  type instance ExprDecl NoK   = No
+  -- type instance ExprDecl NoK   = No
 
   type instance ExprPrim ModK  = No
   type instance ExprPrim ValK  = ValPrim
   type instance ExprPrim TyK   = TyPrim
   type instance ExprPrim KindK = KindPrim
-  type instance ExprPrim NoK   = No
+  -- type instance ExprPrim NoK   = No
 
   |]

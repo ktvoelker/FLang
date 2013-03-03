@@ -44,17 +44,17 @@ kw xs = tok ("'" ++ xs ++ "'") $ \t -> case t of
   TExprOp ys | xs == ys -> Just ()
   _ -> Nothing
 
-genModHeader :: String -> Parser (Binder TyK)
-genModHeader word = do
+genModHeader :: String -> Parser (Expr (ExprTy k)) -> Parser (Binder k)
+genModHeader word hasTyLike = do
   kw word
   n <- bindName
-  Binder n <$> optionMaybe hasTy
+  Binder n <$> optionMaybe hasTyLike
 
-modHeader :: Parser (Binder TyK)
-modHeader = genModHeader "module"
+modHeader :: Parser (Binder ModK)
+modHeader = genModHeader "module" hasTy
 
 sigHeader :: Parser (Binder TyK)
-sigHeader = genModHeader "sig"
+sigHeader = genModHeader "sig" hasKind
 
 modExpr :: Parser ModExpr
 modExpr = locate $ do
@@ -87,7 +87,10 @@ parentTy = kw "<:" >> ty
 hasTy :: Parser TyExpr
 hasTy = kw ":" >> ty
 
-valParam :: Parser (Binder k)
+hasKind :: Parser KindExpr
+hasKind = todo
+
+valParam :: (ExprTy k ~ TyK) => Parser (Binder k)
 valParam = do
   fmap (flip Binder Nothing) bindName
   <|>
@@ -133,7 +136,7 @@ modDecl = locate $ do
   do
     kw "type"
     n <- bindName
-    lhs <- optionMaybe hasTy
+    lhs <- optionMaybe hasKind
     kw "is"
     rhs <- ty
     kw ";"

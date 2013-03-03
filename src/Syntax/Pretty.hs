@@ -126,39 +126,49 @@ instance Pretty TyDecl SyntaxKind where
     tokens op
     tokens b
 
-instance
-  ( Pretty (ExprDecl k) SyntaxKind
-  , Pretty (ExprPrim k) SyntaxKind
-  , Pretty (Expr (ExprTy k)) SyntaxKind
-  ) => Pretty (Expr k) SyntaxKind where
-  tokens (Lam _ ps e) = tellBrackets "(" ")" $ do
-    tt "fn"
-    mapM_ tokens ps
-    t1 SKOper "->"
-    tokens e
-  tokens (App _ e es) = tokens e >> mapM_ tokens es
-  tokens (Record _ ds) = do
-    tt "rec"
-    tellBrackets "{" "}" $ mapM_ tokens ds
-  tokens (Ref _ name) = tokens name
-  -- TODO it would be useful for these refs to keep the string names
-  tokens (UniqueRef _ n) = tt $ "_?_" ++ show n
-  tokens (Member _ e name) = do
-    tokens e
-    t1 SKOper "."
-    tokens name
-  tokens (OpChain _ x xs) = f $ mapM_ (\(o, e) -> tokens o >> tokens e) xs
-    where
-      f = case x of
-        Nothing -> tellBrackets "(" ")"
-        Just x  -> (tokens x >>)
-  tokens (Let _ ds e) = tellBrackets "(" ")" $ do
-    tt "let"
-    tellBrackets "{" "}" $ mapM_ tokens ds
-    tt "in"
-    tokens e
-  tokens (Prim _ e) = tokens e
-  tokens (ToDo _) = t1 SKOper "?"
+instance Pretty (Expr ModK) SyntaxKind where
+  tokens = genExprTokens
+
+instance Pretty (Expr ValK) SyntaxKind where
+  tokens = genExprTokens
+
+instance Pretty (Expr TyK) SyntaxKind where
+  tokens = genExprTokens
+
+instance Pretty (Expr KindK) SyntaxKind where
+  tokens = genExprTokens
+
+instance Pretty (Expr NoK) SyntaxKind where
+  tokens = undefined
+
+genExprTokens (Lam _ ps e) = tellBrackets "(" ")" $ do
+  tt "fn"
+  mapM_ tokens ps
+  t1 SKOper "->"
+  tokens e
+genExprTokens (App _ e es) = tokens e >> mapM_ tokens es
+genExprTokens (Record _ ds) = do
+  tt "rec"
+  tellBrackets "{" "}" $ mapM_ tokens ds
+genExprTokens (Ref _ name) = tokens name
+-- TODO it would be useful for these refs to keep the string names
+genExprTokens (UniqueRef _ n) = tt $ "_?_" ++ show n
+genExprTokens (Member _ e name) = do
+  tokens e
+  t1 SKOper "."
+  tokens name
+genExprTokens (OpChain _ x xs) = f $ mapM_ (\(o, e) -> tokens o >> tokens e) xs
+  where
+    f = case x of
+      Nothing -> tellBrackets "(" ")"
+      Just x  -> (tokens x >>)
+genExprTokens (Let _ ds e) = tellBrackets "(" ")" $ do
+  tt "let"
+  tellBrackets "{" "}" $ mapM_ tokens ds
+  tt "in"
+  tokens e
+genExprTokens (Prim _ e) = tokens e
+genExprTokens (ToDo _) = t1 SKOper "?"
 
 instance Pretty ValPrim SyntaxKind where
   tokens (LamCase _ cs) = do
