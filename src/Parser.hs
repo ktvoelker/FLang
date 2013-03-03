@@ -427,7 +427,7 @@ tyRec :: Parser TyExpr
 tyRec = fmap mkRecord $ between (kw "rec") (kw "end") $ semi $ do
   n <- bindName
   t <- hasTy
-  return $ mkFieldDecl n t
+  return $ mkValField n t
 
 tyConstr :: Parser TyDecl
 tyConstr = do

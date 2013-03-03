@@ -7,6 +7,8 @@ import Import
 
 data ExprKind = ModK | ValK | TyK | KindK | NoK
 
+data ExprTag (k :: ExprKind) = ExprTag
+
 type family ExprTy (k :: ExprKind) :: ExprKind
 
 type family ExprDecl (k :: ExprKind) :: *
@@ -68,6 +70,9 @@ annotateExcept ["Binder"] [d|
     | Let [ExprDecl k] (Expr k)
     | Prim (ExprPrim k)
     | ToDo
+
+  exprTag :: Expr k -> ExprTag k
+  exprTag = const ExprTag
 
   |]
 

@@ -16,7 +16,7 @@ import Syntax
  - 5. Report circularity errors, if prohibited
  - 6. Flatten the SCC values into a list of the decls
  -}
-sortDecls :: (Decl a, Show a) => [(a, Set Integer)] -> FM [a]
+sortDecls :: (Decl d) => [(d, Set Integer)] -> FM [d]
 sortDecls pairs = do
   -- TODO put the sanity check back
   -- Make the referencing graph

@@ -4,8 +4,8 @@ module Syntax (
     No(), Namespace(..), BindName(..), mkBindName, mkUniqueName, namespace, Binder(..)
   , Binding(..), HasBindNames(..)
   -- * Generic expressions and declarations
-  , ExprKind(..), ExprTy, ExprDecl, ExprPrim, Expr(..), mkRef, mkMember, mkLet, mkLam
-  , mkRecord, mkApp, mkPrim, mkOpChain, mkToDo, Decl(..)
+  , ExprKind(..), ExprTag(..), exprTag, ExprTy, ExprDecl, ExprPrim, Expr(..), mkRef
+  , mkMember, mkLet, mkLam, mkRecord, mkApp, mkPrim, mkOpChain, mkToDo, Decl(..)
   -- * Modules
   , ModDecl(..), mkBindMod, mkBindSig, mkBindVal, mkBindTy, mkData, mkInfix, ModExpr
   , ModBinding, OpenQual(..), DataMode(..), InfixAssoc(..)
