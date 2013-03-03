@@ -6,12 +6,14 @@ module Syntax (
   -- * Generic expressions and declarations
   , ExprKind(..), ExprTag(..), exprTag, ExprTy, ExprDecl, ExprPrim, Expr(..), mkRef
   , mkMember, mkLet, mkLam, mkRecord, mkApp, mkPrim, mkOpChain, mkToDo, Decl(..)
-  -- * Modules
-  , ModDecl(..), mkBindMod, mkBindSig, mkBindVal, mkBindTy, mkData, mkInfix, ModExpr
-  , ModBinding, OpenQual(..), DataMode(..), InfixAssoc(..)
+  -- * Kinds
+  , KindPrim(..)
   -- * Types
   , TyPrim(..), TyBound(..), mkTyBound, TyCompOp(..), TyDecl(..), mkConstraint
   , mkValField, mkModField, mkTyField, TyExpr, TyBinding
+  -- * Modules
+  , ModDecl(..), mkBindMod, mkBindSig, mkBindVal, mkBindTy, mkData, mkInfix, ModExpr
+  , ModBinding, OpenQual(..), DataMode(..), InfixAssoc(..)
   -- * Values
   , ValPrim(..), mkCase, mkLamCase, mkEInt, mkEFloat, mkEString, mkEChar, mkDo
   , ValDecl(..)

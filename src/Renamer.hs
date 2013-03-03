@@ -35,6 +35,26 @@ class (Decl a) => RenameDecl a where
 class RenamePrim a where
   renamePrim :: a -> M a
 
+class
+  ( RenameDecl (ExprDecl k)
+  , RenamePrim (ExprPrim k)
+  , RenameDecl (ExprDecl (ExprTy k))
+  , RenamePrim (ExprPrim (ExprTy k))
+  ) => RenameExpr k where
+
+instance RenameExpr ModK where
+
+instance RenameExpr ValK where
+
+instance RenameExpr TyK where
+
+instance RenameExpr KindK where
+
+instance RenameExpr NoK where
+
+instance RenameDecl No where
+  renameDecl _ = undefined
+
 instance RenameDecl ModDecl where
   renameDecl (BindMod a b) = BindMod a <$> renameBinding b
   renameDecl (BindSig a b) = BindSig a <$> renameBinding b
@@ -62,9 +82,7 @@ instance RenameDecl TyDecl where
         Just (TyBound a o e) -> Just . TyBound a o <$> renameExpr e
   renameDecl (ModField a n e) = ModField a <$> renameNameBind n <*> renameExpr e
 
-renameBinding
-  :: (RenameDecl (ExprDecl k), RenamePrim (ExprPrim k))
-  => Binding k -> M (Binding k)
+renameBinding :: (RenameExpr k) => Binding k -> M (Binding k)
 renameBinding (Binding (Binder n t) e) = do
   n' <- renameNameBind n
   t' <- maybe (return Nothing) (fmap Just . renameExpr) t
@@ -95,13 +113,19 @@ renameNameBind :: BindName -> M BindName
 renameNameBind = renameNameFrom eBinds
 
 renameBinders
-  :: (RenameDecl (ExprDecl k), RenamePrim (ExprPrim k))
-  => [Binder k] -> M [Binder k]
+  :: ( RenameDecl (ExprDecl k)
+     , RenamePrim (ExprPrim k)
+     , RenameDecl (ExprDecl (ExprTy k))
+     , RenamePrim (ExprPrim (ExprTy k))
+     ) => [Binder k] -> M [Binder k]
 renameBinders = mapM renameBinder
 
 renameBinder
-  :: (RenameDecl (ExprDecl k), RenamePrim (ExprPrim k))
-  => Binder k -> M (Binder k)
+  :: ( RenameDecl (ExprDecl k)
+     , RenamePrim (ExprPrim k)
+     , RenameDecl (ExprDecl (ExprTy k))
+     , RenamePrim (ExprPrim (ExprTy k))
+     ) => Binder k -> M (Binder k)
 renameBinder (Binder name ty) =
   Binder <$> renameNameBind name <*> mapM renameExpr ty
 
@@ -123,9 +147,7 @@ renameSortDecls
   => ExprTag k -> [ExprDecl k] -> M [ExprDecl k]
 renameSortDecls _ ds = mapM (branch . renameDecl) ds >>= lift3 . sortDecls
 
-renameExpr
-  :: (RenameDecl (ExprDecl k), RenamePrim (ExprPrim k))
-  => Expr k -> M (Expr k)
+renameExpr :: (RenameExpr k) => Expr k -> M (Expr k)
 renameExpr (Lam a bs e) = do
   env' <- makeBindEnv bs
   local (const env') $ Lam a <$> renameBinders bs <*> withBindsInScope (renameExpr e)
@@ -151,6 +173,10 @@ instance RenamePrim No where
   renamePrim no = do
     lift3 . internal $ "Unexpected Prim found in ModExpr or SigExpr"
     return no
+
+-- TODO
+instance RenamePrim KindPrim where
+  renamePrim _ = undefined
 
 instance RenamePrim ValPrim where
   renamePrim (LamCase a xs) = LamCase a <$> mapM renameCaseClause xs

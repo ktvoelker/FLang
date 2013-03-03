@@ -7,6 +7,9 @@ import Syntax.Types
 class HasBindNames a where
   bindNames :: a -> [BindName]
 
+instance HasBindNames No where
+  bindNames _ = []
+
 instance HasBindNames BindName where
   bindNames name = [name]
 

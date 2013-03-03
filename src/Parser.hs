@@ -44,16 +44,16 @@ kw xs = tok ("'" ++ xs ++ "'") $ \t -> case t of
   TExprOp ys | xs == ys -> Just ()
   _ -> Nothing
 
-genModHeader :: String -> Parser Binder
+genModHeader :: String -> Parser (Binder TyK)
 genModHeader word = do
   kw word
   n <- bindName
   Binder n <$> optionMaybe hasTy
 
-modHeader :: Parser Binder
+modHeader :: Parser (Binder TyK)
 modHeader = genModHeader "module"
 
-sigHeader :: Parser Binder
+sigHeader :: Parser (Binder TyK)
 sigHeader = genModHeader "sig"
 
 modExpr :: Parser ModExpr
@@ -87,7 +87,7 @@ parentTy = kw "<:" >> ty
 hasTy :: Parser TyExpr
 hasTy = kw ":" >> ty
 
-valParam :: Parser Binder
+valParam :: Parser (Binder k)
 valParam = do
   fmap (flip Binder Nothing) bindName
   <|>
@@ -175,7 +175,7 @@ oper = tok "operator" $ \t -> case t of
 bindName :: Parser BindName
 bindName = fmap mkBindName $ ident <|> parens oper
 
-ref :: Parser (Expr d e)
+ref :: Parser (Expr k)
 ref = fmap (mkRef . mkBindName) ident
 
 tyRel :: Parser TyBound
@@ -221,7 +221,7 @@ valOp = tok "operator" $ \t -> case t of
   TExprOp xs -> Just . mkRef . mkBindName $ xs
   _ -> Nothing
 
-expr :: String -> Parser (Expr d e) -> Parser (Expr d e) -> Parser (Expr d e)
+expr :: String -> Parser (Expr k) -> Parser (Expr k) -> Parser (Expr k)
 expr descr op prim =
   do
     h <- exprApp prim
@@ -234,13 +234,13 @@ expr descr op prim =
   <?>
   descr
 
-exprOp :: Parser (Expr d e) -> Parser (Expr d e) -> Parser (Expr d e, Expr d e)
+exprOp :: Parser (Expr k) -> Parser (Expr k) -> Parser (Expr k, Expr k)
 exprOp op prim = do
   o <- op
   a <- exprApp prim
   return (o, a)
 
-exprApp :: Parser (Expr d e) -> Parser (Expr d e)
+exprApp :: Parser (Expr k) -> Parser (Expr k)
 exprApp prim = do
   h <- exprMember prim
   t <- many $ exprMember prim
@@ -400,7 +400,7 @@ ty = do
     [] -> co
     _ -> mkLet cs co
 
-tyQuants :: Parser [Binder]
+tyQuants :: Parser [Binder k]
 tyQuants =
   fmap (maybe [] $ map $ flip Binder Nothing)
   $ optionMaybe

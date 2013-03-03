@@ -39,14 +39,16 @@ tellBrackets lb rb m = do
 instance Pretty No SyntaxKind where
   tokens _ = return ()
 
-instance (Pretty (Expr k) SyntaxKind) => Pretty (Binder k) SyntaxKind where
+instance (Pretty (Expr (ExprTy k)) SyntaxKind, Pretty (Expr k) SyntaxKind)
+  => Pretty (Binder k) SyntaxKind where
   tokens (Binder name Nothing) = tokens name
   tokens (Binder name (Just ty)) = tellBrackets "(" ")" $ do
     tokens name
     colon
     tokens ty
 
-instance (Pretty (Expr k) SyntaxKind) => Pretty (Binding k) SyntaxKind where
+instance (Pretty (Expr (ExprTy k)) SyntaxKind, Pretty (Expr k) SyntaxKind)
+  => Pretty (Binding k) SyntaxKind where
   tokens (Binding (Binder name ty) rhs) = do
     tokens name
     whenJust ty $ \ty -> colon >> tokens ty
@@ -125,8 +127,10 @@ instance Pretty TyDecl SyntaxKind where
     tokens b
 
 instance
-  (Pretty (ExprDecl k) SyntaxKind, Pretty (ExprPrim k) SyntaxKind)
-  => Pretty (Expr k) SyntaxKind where
+  ( Pretty (ExprDecl k) SyntaxKind
+  , Pretty (ExprPrim k) SyntaxKind
+  , Pretty (Expr (ExprTy k)) SyntaxKind
+  ) => Pretty (Expr k) SyntaxKind where
   tokens (Lam _ ps e) = tellBrackets "(" ")" $ do
     tt "fn"
     mapM_ tokens ps

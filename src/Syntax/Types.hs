@@ -49,7 +49,7 @@ annotateExcept ["Binder"] [d|
   data BindName = BindName String | UniqueName Integer String
     deriving (Eq, Ord, Show)
 
-  data Binder (k :: ExprKind) = Binder BindName (Maybe (Expr k))
+  data Binder (k :: ExprKind) = Binder BindName (Maybe (Expr (ExprTy k)))
 
   data TyBound = TyBound TyCompOp (Expr TyK)
 
@@ -121,15 +121,18 @@ annotate [d|
   type instance ExprTy ValK  = TyK
   type instance ExprTy TyK   = KindK
   type instance ExprTy KindK = NoK
+  type instance ExprTy NoK   = NoK
 
   type instance ExprDecl ModK  = ModDecl
   type instance ExprDecl ValK  = ValDecl
   type instance ExprDecl TyK   = TyDecl
   type instance ExprDecl KindK = No
+  type instance ExprDecl NoK   = No
 
   type instance ExprPrim ModK  = No
   type instance ExprPrim ValK  = ValPrim
   type instance ExprPrim TyK   = TyPrim
   type instance ExprPrim KindK = KindPrim
+  type instance ExprPrim NoK   = No
 
   |]
