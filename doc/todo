@@ -9,9 +9,6 @@ Unify sigs and types
   We should have another parameter of Expr which is the static type of types for that
   sort of expr.
 
-  data KindPrim = KVal | KMod | KValFn | KModFn
-    deriving (Eq, Ord, Enum, Bounded, Show)
-
 Try to move most primitive exprs constructors into the generic expr type
 
 Eliminate redundancy between literals in exprs and patterns

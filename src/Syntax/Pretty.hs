@@ -221,3 +221,6 @@ instance Pretty TyPrim SyntaxKind where
   tokens TyAuto = t1 SKOper "*"
   tokens TyEmpty = tt "(#?EMPTY?#)"
 
+instance Pretty KindPrim SyntaxKind where
+  tokens = todo
+

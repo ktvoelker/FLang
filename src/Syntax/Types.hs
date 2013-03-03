@@ -16,6 +16,9 @@ instance Ord No where
 instance Show No where
   show _ = "()"
 
+data KindPrim = KVal | KMod | KValFn | KModFn
+  deriving (Eq, Ord, Enum, Bounded, Show)
+
 data Namespace = NsTys | NsValues
   deriving (Eq, Ord, Show)
 
