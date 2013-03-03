@@ -3,6 +3,9 @@ module Util where
 
 import Import
 
+todo :: a
+todo = error "Not implemented"
+
 readMaybe :: (Read a) => String -> Maybe a
 readMaybe = fmap fst . listToMaybe . reads
 
