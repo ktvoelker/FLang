@@ -88,7 +88,10 @@ hasTy :: Parser TyExpr
 hasTy = kw ":" >> ty
 
 hasKind :: Parser KindExpr
-hasKind = todo
+hasKind = kw ":" >> kind
+
+kind :: Parser KindExpr
+kind = todo
 
 valParam :: (TyTag k ~ Ty) => Parser (Binder k)
 valParam = do

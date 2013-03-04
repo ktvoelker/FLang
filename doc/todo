@@ -2,8 +2,6 @@
 TO-DO
 =====
 
-Implement todo functions
-
 Implement instance Pretty Err
 
 Write the module type-checker
