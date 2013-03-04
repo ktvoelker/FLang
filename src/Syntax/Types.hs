@@ -5,29 +5,26 @@ module Syntax.Types where
 import Annotation
 import Import
 
-data ExprKind = ModK | ValK | TyK | KindK | NoK
-
-data ExprTag (k :: ExprKind) = ExprTag
-
-type family ExprTy (k :: ExprKind) :: ExprKind
-
-type family ExprDecl (k :: ExprKind) :: *
-
-type family ExprPrim (k :: ExprKind) :: *
-
-data No
-
-instance Eq No where
-  _ == _ = True
-
-instance Ord No where
-  compare _ _ = EQ
-
-instance Show No where
-  show _ = "()"
-
-data KindPrim = KVal | KMod | KValFn | KModFn
+data Tag = Mod | Val | Ty | Kind
   deriving (Eq, Ord, Enum, Bounded, Show)
+
+type family TyTag (t :: Tag) :: Tag
+type instance TyTag Mod = Ty
+type instance TyTag Val = Ty
+type instance TyTag Ty = Kind
+
+data Lit t where
+  KVal    :: Lit Kind
+  KMod    :: Lit Kind
+  KValFn  :: Lit Kind
+  KModFn  :: Lit Kind
+  TyFn    :: Lit Ty
+  TyAuto  :: Lit Ty
+  TyEmpty :: Lit Ty
+  LInt    :: Integer -> Lit Val
+  LFloat  :: Rational -> Lit Val
+  LString :: String -> Lit Val
+  LChar   :: Char -> Lit Val
 
 data Namespace = NsTys | NsValues
   deriving (Eq, Ord, Enum, Bounded, Show)
@@ -41,98 +38,62 @@ data InfixAssoc = InfixLeft | InfixRight | InfixNone
 data TyCompOp = OpSubTy | OpSuperTy | OpEqualTy
   deriving (Eq, Ord, Enum, Bounded, Show)
 
-data TyPrim = TyFn | TyAuto | TyEmpty
-  deriving (Eq, Ord, Enum, Bounded, Show)
-
-annotateExcept ["Binder"] [d|
+annotateExcept ["Binder", "Binding"] [d|
 
   data BindName = BindName String | UniqueName Integer String
     deriving (Eq, Ord, Show)
 
-  data Binder (k :: ExprKind) = Binder BindName (Maybe (Expr (ExprTy k)))
+  data Binder t = Binder BindName (Maybe (Expr (TyTag t)))
 
-  data TyBound = TyBound TyCompOp (Expr TyK)
+  data Expr t where
+    Lam       :: [Binder t] -> Expr t -> Expr t
+    App       :: Expr t -> [Expr t] -> Expr t
+    Record    :: [Decl t] -> Expr t
+    Ref       :: BindName -> Expr t
+    UniqueRef :: Integer -> Expr t
+    Member    :: Expr t -> BindName -> Expr t
+    OpChain   :: Maybe (Expr t) -> [(Expr t, Expr t)] -> Expr t
+    Let       :: [Decl t] -> Expr t -> Expr t
+    ToDo      :: Expr t
+    LamCase   :: [CaseClause] -> Expr Val
+    Case      :: Expr Val -> [CaseClause] -> Expr Val
+    Do        :: [DoElem] -> Expr Val
+    Lit       :: Lit t -> Expr t
 
-  data TyDecl =
-      Constraint (Expr TyK) TyCompOp (Expr TyK)
-    | ValField BindName (Expr TyK)
-    | TyField BindName (Maybe TyBound)
-    | ModField BindName (Expr TyK)
-
-  data Expr (k :: ExprKind) =
-      Lam [Binder k] (Expr k)
-    | App (Expr k) [Expr k]
-    | Record [ExprDecl k]
-    | Ref BindName
-    | UniqueRef Integer
-    | Member (Expr k) BindName
-    | OpChain (Maybe (Expr k)) [(Expr k, Expr k)]
-    | Let [ExprDecl k] (Expr k)
-    | Prim (ExprPrim k)
-    | ToDo
-
-  exprTag :: Expr k -> ExprTag k
-  exprTag = const ExprTag
-
-  |]
-
-data Binding (k :: ExprKind) = Binding (Binder k) (Expr k)
-
-annotate [d|
-
-  data OpenQual = OpenExcept [BindName] | OpenOnly [BindName]
-
-  data ModDecl =
-      BindMod (Binding ModK)
-    | BindSig (Binding TyK)
-    | BindVal (Binding ValK)
-    | BindTy (Binding TyK)
-    | Data DataMode BindName (Maybe (Expr TyK)) (Expr TyK) [ModDecl]
-    | Infix InfixAssoc Integer [BindName]
-
-  data ValDecl = BindLocalVal (Binding ValK)
-
-  data ValPrim =
-      LamCase [CaseClause]
-    | Case (Expr ValK) [CaseClause]
-    | Do [DoElem]
-    | EInt Integer
-    | EFloat Rational
-    | EString String
-    | EChar Char
-
-  data CaseClause = CaseClause Pat (Expr ValK)
+  data CaseClause = CaseClause Pat (Expr Val)
 
   data DoElem =
-      DoLet [ValDecl]
-    | DoBind Pat (Expr ValK)
-    | DoExpr (Expr ValK)
+      DoLet [Decl Val]
+    | DoBind Pat (Expr Val)
+    | DoExpr (Expr Val)
 
   data Pat =
       PatParams [Pat]
     | PatBind BindName
-    | PatApp (Expr ValK) [Pat]
-    | PatInt Integer
-    | PatString String
-    | PatChar Char
+    | PatApp (Expr Val) [Pat]
+    | PatLit (Lit Val)
     | PatIgnore
 
-  type instance ExprTy ModK  = TyK
-  type instance ExprTy ValK  = TyK
-  type instance ExprTy TyK   = KindK
-  type instance ExprTy KindK = NoK
-  type instance ExprTy NoK   = NoK
+  data Decl t where
+    Constraint :: Expr Ty -> TyCompOp -> Expr Ty -> Decl Ty
+    ValField   :: BindName -> Expr Ty -> Decl Ty
+    TyField    :: BindName -> Maybe TyBound -> Decl Ty
+    ModField   :: BindName -> Expr Ty -> Decl Ty
+    -- TODO: Combine BindLocal and BindVal when the necessary predicate
+    -- (TyTag t ~ Ty) is supported by Template Haskell.
+    BindLocal  :: Binding Val -> Decl Val
+    BindVal    :: Binding Val -> Decl Mod
+    BindMod    :: Binding Mod -> Decl Mod
+    BindSig    :: Binding Ty -> Decl Mod
+    BindTy     :: Binding Ty -> Decl Mod
+    Infix      :: InfixAssoc -> Integer -> [BindName] -> Decl Mod
+    Data       :: DataMode -> BindName -> Maybe (Expr Ty) -> Expr Ty -> [Decl Mod]
+               -> Decl Mod
 
-  type instance ExprDecl ModK  = ModDecl
-  type instance ExprDecl ValK  = ValDecl
-  type instance ExprDecl TyK   = TyDecl
-  type instance ExprDecl KindK = No
-  -- type instance ExprDecl NoK   = No
+  data Binding t = Binding (Binder t) (Expr t)
 
-  type instance ExprPrim ModK  = No
-  type instance ExprPrim ValK  = ValPrim
-  type instance ExprPrim TyK   = TyPrim
-  type instance ExprPrim KindK = KindPrim
-  -- type instance ExprPrim NoK   = No
+  data TyBound = TyBound TyCompOp (Expr Ty)
+
+  data OpenQual = OpenExcept [BindName] | OpenOnly [BindName]
 
   |]

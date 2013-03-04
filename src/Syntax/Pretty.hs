@@ -36,10 +36,7 @@ tellBrackets lb rb m = do
   m
   t1 SKRBracket rb
 
-instance Pretty No SyntaxKind where
-  tokens _ = return ()
-
-instance (Pretty (Expr (ExprTy k)) SyntaxKind, Pretty (Expr k) SyntaxKind)
+instance (Pretty (Expr (TyTag k)) SyntaxKind, Pretty (Expr k) SyntaxKind)
   => Pretty (Binder k) SyntaxKind where
   tokens (Binder name Nothing) = tokens name
   tokens (Binder name (Just ty)) = tellBrackets "(" ")" $ do
@@ -47,7 +44,7 @@ instance (Pretty (Expr (ExprTy k)) SyntaxKind, Pretty (Expr k) SyntaxKind)
     colon
     tokens ty
 
-instance (Pretty (Expr (ExprTy k)) SyntaxKind, Pretty (Expr k) SyntaxKind)
+instance (Pretty (Expr (TyTag k)) SyntaxKind, Pretty (Expr k) SyntaxKind)
   => Pretty (Binding k) SyntaxKind where
   tokens (Binding (Binder name ty) rhs) = do
     tokens name
@@ -65,42 +62,7 @@ instance Pretty BindName SyntaxKind where
         then tell [Word xs SKText]
         else tell [Word ("(" ++ xs ++ ")") SKOper]
 
-instance Pretty ModDecl SyntaxKind where
-  tokens (BindMod _ b) = tt "module" >> tokens b
-  tokens (BindSig _ b) = tt "sig" >> tokens b
-  tokens (BindVal _ b) = tt "val" >> tokens b
-  tokens (BindTy _ b) = tt "type" >> tokens b
-  tokens (Data _ mode name parent ty kids) = do
-    tt "data"
-    when (mode == DataOpen) $ tt "open"
-    tokens name
-    whenJust parent $ \parent -> t1 SKOper "<:" >> tokens parent
-    case ty of
-      Prim _ TyEmpty -> return ()
-      _ -> tt "is" >> tokens ty
-    case kids of
-      [] -> semi
-      _  -> tellBrackets "{" "}" $ mapM_ tokens kids
-  tokens (Infix _ assoc prec bs) = do
-    tt "infix"
-    case assoc of
-      InfixLeft -> tt "left"
-      InfixRight -> tt "right"
-      InfixNone -> return ()
-    tt $ show prec
-    mapM_ tokens bs
-    semi
-
-instance Pretty ValDecl SyntaxKind where
-  tokens (BindLocalVal _ b) = tokens b
-
-instance Pretty TyCompOp SyntaxKind where
-  tokens op = t1 SKOper $ case op of
-    OpSubTy -> "<:"
-    OpSuperTy -> ">:"
-    OpEqualTy -> ":"
-
-instance Pretty TyDecl SyntaxKind where
+instance Pretty (Decl t) SyntaxKind where
   tokens (ValField _ name ty) = do
     tt "val" -- TODO no "val" when inside a val record
     tokens name
@@ -125,52 +87,66 @@ instance Pretty TyDecl SyntaxKind where
     tokens a
     tokens op
     tokens b
+  tokens (BindLocal _ b) = tokens b
+  tokens (BindMod _ b) = tt "module" >> tokens b
+  tokens (BindSig _ b) = tt "sig" >> tokens b
+  tokens (BindVal _ b) = tt "val" >> tokens b
+  tokens (BindTy _ b) = tt "type" >> tokens b
+  tokens (Infix _ assoc prec bs) = do
+    tt "infix"
+    case assoc of
+      InfixLeft -> tt "left"
+      InfixRight -> tt "right"
+      InfixNone -> return ()
+    tt $ show prec
+    mapM_ tokens bs
+    semi
+  tokens (Data _ mode name parent ty kids) = do
+    tt "data"
+    when (mode == DataOpen) $ tt "open"
+    tokens name
+    whenJust parent $ \parent -> t1 SKOper "<:" >> tokens parent
+    case ty of
+      Lit _ TyEmpty -> return ()
+      _ -> tt "is" >> tokens ty
+    case kids of
+      [] -> semi
+      _  -> tellBrackets "{" "}" $ mapM_ tokens kids
 
-instance Pretty (Expr ModK) SyntaxKind where
-  tokens = genExprTokens
+instance Pretty TyCompOp SyntaxKind where
+  tokens op = t1 SKOper $ case op of
+    OpSubTy -> "<:"
+    OpSuperTy -> ">:"
+    OpEqualTy -> ":"
 
-instance Pretty (Expr ValK) SyntaxKind where
-  tokens = genExprTokens
-
-instance Pretty (Expr TyK) SyntaxKind where
-  tokens = genExprTokens
-
-instance Pretty (Expr KindK) SyntaxKind where
-  tokens = genExprTokens
-
-instance Pretty (Expr NoK) SyntaxKind where
-  tokens = undefined
-
-genExprTokens (Lam _ ps e) = tellBrackets "(" ")" $ do
-  tt "fn"
-  mapM_ tokens ps
-  t1 SKOper "->"
-  tokens e
-genExprTokens (App _ e es) = tokens e >> mapM_ tokens es
-genExprTokens (Record _ ds) = do
-  tt "rec"
-  tellBrackets "{" "}" $ mapM_ tokens ds
-genExprTokens (Ref _ name) = tokens name
--- TODO it would be useful for these refs to keep the string names
-genExprTokens (UniqueRef _ n) = tt $ "_?_" ++ show n
-genExprTokens (Member _ e name) = do
-  tokens e
-  t1 SKOper "."
-  tokens name
-genExprTokens (OpChain _ x xs) = f $ mapM_ (\(o, e) -> tokens o >> tokens e) xs
-  where
-    f = case x of
-      Nothing -> tellBrackets "(" ")"
-      Just x  -> (tokens x >>)
-genExprTokens (Let _ ds e) = tellBrackets "(" ")" $ do
-  tt "let"
-  tellBrackets "{" "}" $ mapM_ tokens ds
-  tt "in"
-  tokens e
-genExprTokens (Prim _ e) = tokens e
-genExprTokens (ToDo _) = t1 SKOper "?"
-
-instance Pretty ValPrim SyntaxKind where
+instance Pretty (Expr t) SyntaxKind where
+  tokens (Lam _ ps e) = tellBrackets "(" ")" $ do
+    tt "fn"
+    mapM_ tokens ps
+    t1 SKOper "->"
+    tokens e
+  tokens (App _ e es) = tokens e >> mapM_ tokens es
+  tokens (Record _ ds) = do
+    tt "rec"
+    tellBrackets "{" "}" $ mapM_ tokens ds
+  tokens (Ref _ name) = tokens name
+  -- TODO it would be useful for these refs to keep the string names
+  tokens (UniqueRef _ n) = tt $ "_?_" ++ show n
+  tokens (Member _ e name) = do
+    tokens e
+    t1 SKOper "."
+    tokens name
+  tokens (OpChain _ x xs) = f $ mapM_ (\(o, e) -> tokens o >> tokens e) xs
+    where
+      f = case x of
+        Nothing -> tellBrackets "(" ")"
+        Just x  -> (tokens x >>)
+  tokens (Let _ ds e) = tellBrackets "(" ")" $ do
+    tt "let"
+    tellBrackets "{" "}" $ mapM_ tokens ds
+    tt "in"
+    tokens e
+  tokens (ToDo _) = t1 SKOper "?"
   tokens (LamCase _ cs) = do
     tt "fn"
     tellBrackets "{" "}" $ mapM_ tokens cs
@@ -180,15 +156,26 @@ instance Pretty ValPrim SyntaxKind where
     tt "of"
     tellBrackets "{" "}" $ mapM_ tokens cs
   tokens (Do _ es) = tt "do" >> tellBrackets "{" "}" (mapM_ tokens es)
-  tokens (EInt _ n) = tt $ show n
-  tokens (EFloat _ (a :% b)) = tellBrackets "(" ")" $ do
+  tokens (Lit _ lit) = tokens lit
+
+instance Pretty (Lit t) SyntaxKind where
+  -- TODO figure out how to get the arrows to appear infix
+  tokens TyFn = tt "(->)"
+  tokens TyAuto = t1 SKOper "*"
+  tokens TyEmpty = tt "(#?EMPTY?#)"
+  tokens KVal = todo
+  tokens KMod = todo
+  tokens KValFn = todo
+  tokens KModFn = todo
+  tokens (LInt n) = tt $ show n
+  tokens (LFloat (a :% b)) = tellBrackets "(" ")" $ do
     tt $ show a
     t1 SKOper "/"
     tt $ show b
   -- TODO escape properly
-  tokens (EString _ xs) = tt $ "\"" ++ xs ++ "\""
+  tokens (LString xs) = tt $ "\"" ++ xs ++ "\""
   -- TODO escape properly
-  tokens (EChar _ x) = tt $ "'" ++ [x] ++ "'"
+  tokens (LChar x) = tt $ "'" ++ [x] ++ "'"
 
 instance Pretty CaseClause SyntaxKind where
   tokens (CaseClause _ pat expr) = do
@@ -218,17 +205,6 @@ instance Pretty Pat SyntaxKind where
   tokens (PatApp _ expr ps) = tellBrackets "(" ")" $ do
     tokens expr
     mapM_ tokens ps
-  tokens (PatInt loc n) = tokens $ EInt loc n
-  tokens (PatString loc xs) = tokens $ EString loc xs
-  tokens (PatChar loc x) = tokens $ EChar loc x
+  tokens (PatLit _ lit) = tokens lit
   tokens (PatIgnore _) = tt "_"
-
-instance Pretty TyPrim SyntaxKind where
-  -- TODO figure out how to get the arrows to appear infix
-  tokens TyFn = tt "(->)"
-  tokens TyAuto = t1 SKOper "*"
-  tokens TyEmpty = tt "(#?EMPTY?#)"
-
-instance Pretty KindPrim SyntaxKind where
-  tokens = todo
 

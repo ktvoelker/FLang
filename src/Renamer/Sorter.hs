@@ -16,7 +16,7 @@ import Syntax
  - 5. Report circularity errors, if prohibited
  - 6. Flatten the SCC values into a list of the decls
  -}
-sortDecls :: (Decl d) => [(d, Set Integer)] -> FM [d]
+sortDecls :: [(Decl t, Set Integer)] -> FM [Decl t]
 sortDecls pairs = do
   -- TODO put the sanity check back
   -- Make the referencing graph
@@ -46,7 +46,7 @@ disjoint ss = all id [twoDisjoint as bs | (as, ka) <- ss', (bs, kb) <- ss', ka /
 newtype Key = Key Integer deriving (Eq, Ord, Show)
 
 -- TODO: we should be using richer types so the impossible is known to be so
-bindKey :: (Decl a) => a -> Key
+bindKey :: (HasBindNames a) => a -> Key
 bindKey = Key . fromJust . listToMaybe . sort . map f . bindNames
   where
     f (UniqueName _ n _) = n

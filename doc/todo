@@ -2,15 +2,9 @@
 TO-DO
 =====
 
-Finish unifying sigs and types
+Use GADTs for the syntax
 
-  Consider changing the parameter of Binder to be the type type and not the expr type
-
-  Implement remaining functions
-
-Try to move most primitive exprs constructors into the generic expr type
-
-Eliminate redundancy between literals in exprs and patterns
+Implement todo functions
 
 Implement instance Pretty Err
 
