@@ -21,6 +21,12 @@ type ValBinding = Binding Val
 
 type TyBinding = Binding Ty
 
+type ModDecl = Decl Mod
+
+type ValDecl = Decl Val
+
+type TyDecl = Decl Ty
+
 type ModExpr = Expr Mod
 
 type ValExpr = Expr Val

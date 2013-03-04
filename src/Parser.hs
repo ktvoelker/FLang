@@ -44,16 +44,16 @@ kw xs = tok ("'" ++ xs ++ "'") $ \t -> case t of
   TExprOp ys | xs == ys -> Just ()
   _ -> Nothing
 
-genModHeader :: String -> Parser (Expr (ExprTy k)) -> Parser (Binder k)
+genModHeader :: String -> Parser (Expr (TyTag k)) -> Parser (Binder k)
 genModHeader word hasTyLike = do
   kw word
   n <- bindName
   Binder n <$> optionMaybe hasTyLike
 
-modHeader :: Parser (Binder ModK)
+modHeader :: Parser (Binder Mod)
 modHeader = genModHeader "module" hasTy
 
-sigHeader :: Parser (Binder TyK)
+sigHeader :: Parser (Binder Ty)
 sigHeader = genModHeader "sig" hasKind
 
 modExpr :: Parser ModExpr
@@ -90,7 +90,7 @@ hasTy = kw ":" >> ty
 hasKind :: Parser KindExpr
 hasKind = todo
 
-valParam :: (ExprTy k ~ TyK) => Parser (Binder k)
+valParam :: (TyTag k ~ Ty) => Parser (Binder k)
 valParam = do
   fmap (flip Binder Nothing) bindName
   <|>
@@ -116,7 +116,7 @@ dataDecl par = do
   p <- par
   t <- optionMaybe $ kw "is" >> ty
   c <- (kw ";" >> return []) <|> (braces . many . dataDecl $ return Nothing)
-  return $ mkData (maybe DataClosed id o) n p (maybe (mkPrim TyEmpty) id t) c
+  return $ mkData (maybe DataClosed id o) n p (maybe (mkLit TyEmpty) id t) c
 
 modDecl :: Parser ModDecl
 modDecl = locate $ do
@@ -259,7 +259,7 @@ localBind = do
   t <- optionMaybe hasTy
   kw "is"
   e <- valExpr
-  return . mkBindLocalVal $ Binding (Binder n t) e
+  return . mkBindLocal $ Binding (Binder n t) e
 
 semi = (`sepEndBy1` kw ";")
 
@@ -274,7 +274,7 @@ exprLam = kw "fn" >> (lamCase <|> lamPlain)
        - an expression rather than a block of clauses.
        --}
       try $ kw "{"
-      e <- mkPrim . mkLamCase <$> many1 (genCaseClause $ mkPatParams <$> many1 pat)
+      e <- mkLamCase <$> many1 (genCaseClause $ mkPatParams <$> many1 pat)
       kw "}"
       return e
     lamPlain = do
@@ -294,7 +294,7 @@ genCaseClause pat =
     mkCaseClause mkPatIgnore <$> valPrimEnd
 
 exprCase :: Parser ValExpr
-exprCase = mkPrim <$> do
+exprCase = do
   kw "case"
   s <- valExpr
   kw "of"
@@ -307,11 +307,11 @@ exprBegin :: Parser ValExpr
 exprBegin = braces valExpr
 
 exprLit :: Parser ValExpr
-exprLit = fmap mkPrim . tok "literal primitive" $ \t -> case t of
-  TInt n -> Just $ mkEInt n
-  TFloat n -> Just $ mkEFloat n
-  TString xs -> Just $ mkEString xs
-  TChar c -> Just $ mkEChar c
+exprLit = fmap mkLit . tok "literal primitive" $ \t -> case t of
+  TInt n -> Just $ LInt n
+  TFloat n -> Just $ LFloat n
+  TString xs -> Just $ LString xs
+  TChar c -> Just $ LChar c
   _ -> Nothing
 
 valPrimBlock :: Parser ValExpr
@@ -327,7 +327,7 @@ valPrim :: Parser ValExpr
 valPrim = choice [valPrimBlock, ref, exprLit, kw "?" >> return mkToDo, parens valExpr]
 
 exprDo :: Parser ValExpr
-exprDo = fmap (mkPrim . mkDo) $ kw "do" >> braces (semi doElem)
+exprDo = fmap mkDo $ kw "do" >> braces (semi doElem)
 
 exprLet :: Parser ValExpr
 exprLet = do
@@ -366,10 +366,10 @@ pat =
   "pattern"
 
 patLit :: Parser Pat
-patLit = tok "literal primitive pattern" $ \t -> case t of
-  TInt n -> Just $ mkPatInt n
-  TString xs -> Just $ mkPatString xs
-  TChar c -> Just $ mkPatChar c
+patLit = fmap mkPatLit $ tok "literal primitive pattern" $ \t -> case t of
+  TInt n -> Just $ LInt n
+  TString xs -> Just $ LString xs
+  TChar c -> Just $ LChar c
   _ -> Nothing
 
 patName :: Parser Pat
@@ -414,13 +414,13 @@ tyCore :: Parser TyExpr
 tyCore = expr "type" tyOp tyPrim
 
 tyOp :: Parser TyExpr
-tyOp = kw "->" >> return (mkPrim TyFn)
+tyOp = kw "->" >> return (mkLit TyFn)
 
 tyPrim :: Parser TyExpr
 tyPrim =
   parens tyCore
   <|>
-  (kw "*" >> return (mkPrim TyAuto))
+  (kw "*" >> return (mkLit TyAuto))
   <|>
   tyRec
   <|>

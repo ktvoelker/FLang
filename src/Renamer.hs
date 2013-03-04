@@ -29,61 +29,30 @@ allocUnique = gNextUnique %= (+ 1)
 insertRef :: (Monad m) => Integer -> AR m ()
 insertRef n = getAccum >>= putAccum . Set.insert n
 
-class (Decl a) => RenameDecl a where
-  renameDecl :: a -> M a
+renameDecl :: Decl t -> M (Decl t)
+renameDecl (Constraint ann a o b) =
+  Constraint ann <$> renameExpr a <*> pure o <*> renameExpr b
+renameDecl (ValField a n e) = ValField a <$> renameNameBind n <*> renameExpr e
+renameDecl (TyField a n ty) = TyField a <$> renameNameBind n <*> ty'
+  where
+    ty' = case ty of
+      Nothing -> pure Nothing
+      Just (TyBound a o e) -> Just . TyBound a o <$> renameExpr e
+renameDecl (ModField a n e) = ModField a <$> renameNameBind n <*> renameExpr e
+renameDecl (BindLocal a b) = BindLocal a <$> renameBinding b
+renameDecl (BindMod a b) = BindMod a <$> renameBinding b
+renameDecl (BindSig a b) = BindSig a <$> renameBinding b
+renameDecl (BindVal a b) = BindVal a <$> renameBinding b
+renameDecl (BindTy a b) = BindTy a <$> renameBinding b
+renameDecl (Data a m n p t ds) = do
+  n'  <- renameNameBind n
+  p'  <- maybe (return Nothing) (fmap Just . renameExpr) p
+  t'  <- renameExpr t
+  ds' <- mapM renameDecl ds
+  return $ Data a m n' p' t' ds'
+renameDecl (Infix ann a p ns) = Infix ann a p <$> mapM renameNameRef ns
 
-class RenamePrim a where
-  renamePrim :: a -> M a
-
-class RenameExpr k where
-  renameExpr :: Expr k -> M (Expr k)
-
-instance RenameExpr ModK where
-  renameExpr = genRenameExpr
-
-instance RenameExpr ValK where
-  renameExpr = genRenameExpr
-
-instance RenameExpr TyK where
-  renameExpr = genRenameExpr
-
-instance RenameExpr KindK where
-  renameExpr = todo
-
-instance RenameExpr NoK where
-  renameExpr = todo
-
-instance RenameDecl No where
-  renameDecl _ = undefined
-
-instance RenameDecl ModDecl where
-  renameDecl (BindMod a b) = BindMod a <$> renameBinding b
-  renameDecl (BindSig a b) = BindSig a <$> renameBinding b
-  renameDecl (BindVal a b) = BindVal a <$> renameBinding b
-  renameDecl (BindTy a b) = BindTy a <$> renameBinding b
-  renameDecl (Data a m n p t ds) = do
-    n'  <- renameNameBind n
-    p'  <- maybe (return Nothing) (fmap Just . renameExpr) p
-    t'  <- renameExpr t
-    ds' <- mapM renameDecl ds
-    return $ Data a m n' p' t' ds'
-  renameDecl (Infix ann a p ns) = Infix ann a p <$> mapM renameNameRef ns
-
-instance RenameDecl ValDecl where
-  renameDecl (BindLocalVal a b) = BindLocalVal a <$> renameBinding b
-
-instance RenameDecl TyDecl where
-  renameDecl (Constraint ann a o b) =
-    Constraint ann <$> renameExpr a <*> pure o <*> renameExpr b
-  renameDecl (ValField a n e) = ValField a <$> renameNameBind n <*> renameExpr e
-  renameDecl (TyField a n ty) = TyField a <$> renameNameBind n <*> ty'
-    where
-      ty' = case ty of
-        Nothing -> pure Nothing
-        Just (TyBound a o e) -> Just . TyBound a o <$> renameExpr e
-  renameDecl (ModField a n e) = ModField a <$> renameNameBind n <*> renameExpr e
-
-renameBinding :: (RenameExpr k, RenameExpr (ExprTy k)) => Binding k -> M (Binding k)
+renameBinding :: Binding k -> M (Binding k)
 renameBinding (Binding (Binder n t) e) = do
   n' <- renameNameBind n
   t' <- maybe (return Nothing) (fmap Just . renameExpr) t
@@ -113,10 +82,10 @@ renameNameRef n = do
 renameNameBind :: BindName -> M BindName
 renameNameBind = renameNameFrom eBinds
 
-renameBinders :: (RenameExpr k, RenameExpr (ExprTy k)) => [Binder k] -> M [Binder k]
+renameBinders :: [Binder k] -> M [Binder k]
 renameBinders = mapM renameBinder
 
-renameBinder :: (RenameExpr k, RenameExpr (ExprTy k)) => Binder k -> M (Binder k)
+renameBinder :: Binder k -> M (Binder k)
 renameBinder (Binder name ty) =
   Binder <$> renameNameBind name <*> mapM renameExpr ty
 
@@ -133,57 +102,33 @@ makeRecEnv = makeEnv True
 makeBindEnv :: (HasBindNames a) => [a] -> M Env
 makeBindEnv = makeEnv False
 
-renameSortDecls
-  :: (RenameDecl (ExprDecl k))
-  => ExprTag k -> [ExprDecl k] -> M [ExprDecl k]
-renameSortDecls _ ds = mapM (branch . renameDecl) ds >>= lift3 . sortDecls
+renameSortDecls :: [Decl k] -> M [Decl k]
+renameSortDecls ds = mapM (branch . renameDecl) ds >>= lift3 . sortDecls
 
-genRenameExpr
-  :: ( RenameExpr k
-     , RenameExpr (ExprTy k)
-     , HasBindNames (ExprDecl k)
-     , RenameDecl (ExprDecl k)
-     , RenamePrim (ExprPrim k)
-     )
-  => Expr k -> M (Expr k)
-genRenameExpr (Lam a bs e) = do
+renameExpr :: Expr k -> M (Expr k)
+renameExpr (Lam a bs e) = do
   env' <- makeBindEnv bs
-  local (const env') $ Lam a <$> renameBinders bs <*> withBindsInScope (genRenameExpr e)
-genRenameExpr (App a f as) = App a <$> renameExpr f <*> mapM renameExpr as
-genRenameExpr e@(Record a ds) = do
+  local (const env') $ Lam a <$> renameBinders bs <*> withBindsInScope (renameExpr e)
+renameExpr (App a f as) = App a <$> renameExpr f <*> mapM renameExpr as
+renameExpr (Record a ds) = do
   env' <- makeRecEnv ds
-  Record a <$> local (const env') (renameSortDecls (exprTag e) ds)
-genRenameExpr (Ref a n) = Ref a <$> renameNameRef n
-genRenameExpr e@(UniqueRef _ _) = return e
-genRenameExpr (Member a e n) = Member a <$> renameExpr e <*> pure n
-genRenameExpr (OpChain a e os) = OpChain a <$> mapM renameExpr e <*> mapM f os
+  Record a <$> local (const env') (renameSortDecls ds)
+renameExpr (Ref a n) = Ref a <$> renameNameRef n
+renameExpr e@(UniqueRef _ _) = return e
+renameExpr (Member a e n) = Member a <$> renameExpr e <*> pure n
+renameExpr (OpChain a e os) = OpChain a <$> mapM renameExpr e <*> mapM f os
   where
-    f (a, b) = (,) <$> genRenameExpr a <*> renameExpr b
-genRenameExpr (Let a ds e) = do
+    f (a, b) = (,) <$> renameExpr a <*> renameExpr b
+renameExpr (Let a ds e) = do
   env' <- makeRecEnv ds
-  ds' <- local (const env') $ renameSortDecls (exprTag e) ds
-  e' <- local (const env') $ genRenameExpr e
+  ds' <- local (const env') $ renameSortDecls ds
+  e' <- local (const env') $ renameExpr e
   Let a <$> pure ds' <*> pure e'
-genRenameExpr (Prim a p) = Prim a <$> renamePrim p
-genRenameExpr e@(ToDo _) = return e
-
-instance RenamePrim No where
-  renamePrim no = do
-    lift3 . internal $ "Unexpected Prim found in ModExpr or SigExpr"
-    return no
-
--- TODO
-instance RenamePrim KindPrim where
-  renamePrim _ = undefined
-
-instance RenamePrim ValPrim where
-  renamePrim (LamCase a xs) = LamCase a <$> mapM renameCaseClause xs
-  renamePrim (Case a e xs) = Case a <$> renameExpr e <*> mapM renameCaseClause xs
-  renamePrim (Do a xs) = Do a <$> renameDo xs
-  renamePrim lit = return lit
-
-instance RenamePrim TyPrim where
-  renamePrim = return
+renameExpr e@(ToDo _) = return e
+renameExpr (LamCase a xs) = LamCase a <$> mapM renameCaseClause xs
+renameExpr (Case a e xs) = Case a <$> renameExpr e <*> mapM renameCaseClause xs
+renameExpr (Do a xs) = Do a <$> renameDo xs
+renameExpr lit@(Lit _ _) = return lit
 
 renameCaseClause (CaseClause a p v) = do
   (p', env') <- renamePat p
