@@ -2,8 +2,6 @@
 TO-DO
 =====
 
-Use GADTs for the syntax
-
 Implement todo functions
 
 Implement instance Pretty Err
