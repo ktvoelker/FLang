@@ -2,11 +2,9 @@
 TO-DO
 =====
 
-Implement instance Pretty Err
+Write the infix operator analysis phase
 
 Write the module type-checker
-
-Write the infix operator analysis phase
 
 Write the type type-checker
 
@@ -16,6 +14,8 @@ Write the type type-checker
     1. Ref a: the a must be invariant
 
 Write the value type-checker
+
+Implement instance Pretty Err
 
 Improve the ECirc errors in the sorter
 

@@ -46,8 +46,8 @@ disjoint ss = all id [twoDisjoint as bs | (as, ka) <- ss', (bs, kb) <- ss', ka /
 newtype Key = Key Integer deriving (Eq, Ord, Show)
 
 -- TODO: we should be using richer types so the impossible is known to be so
-bindKey :: (HasBindNames a) => a -> Key
-bindKey = Key . fromJust . listToMaybe . sort . map f . bindNames
+bindKey :: (Binds a) => a -> Key
+bindKey = Key . fromJust . listToMaybe . sort . map f . binds
   where
     f (UniqueName _ n _) = n
     f n = error $ "Impossible: " ++ show n

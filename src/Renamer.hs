@@ -89,17 +89,17 @@ renameBinder :: Binder k -> M (Binder k)
 renameBinder (Binder name ty) =
   Binder <$> renameNameBind name <*> mapM renameExpr ty
 
-makeEnv :: (HasBindNames a) => Bool -> [a] -> M Env
+makeEnv :: (Binds a) => Bool -> [a] -> M Env
 makeEnv inScope ds = do
   env <- ask
-  newPairs <- mapM (\b -> (b, ) <$> allocUnique) $ ds >>= bindNames
+  newPairs <- mapM (\b -> (b, ) <$> allocUnique) $ ds >>= binds
   let f = (^%= Map.union (Map.fromList newPairs))
   return $ f eBinds (if inScope then f eScope env else env)
 
-makeRecEnv :: (HasBindNames a) => [a] -> M Env
+makeRecEnv :: (Binds a) => [a] -> M Env
 makeRecEnv = makeEnv True
 
-makeBindEnv :: (HasBindNames a) => [a] -> M Env
+makeBindEnv :: (Binds a) => [a] -> M Env
 makeBindEnv = makeEnv False
 
 renameSortDecls :: [Decl k] -> M [Decl k]
