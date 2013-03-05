@@ -130,8 +130,6 @@ instance Pretty (Expr t) SyntaxKind where
     tt "rec"
     tellBrackets "{" "}" $ mapM_ tokens ds
   tokens (Ref _ name) = tokens name
-  -- TODO it would be useful for these refs to keep the string names
-  tokens (UniqueRef _ n) = tt $ "_?_" ++ show n
   tokens (Member _ e name) = do
     tokens e
     t1 SKOper "."

@@ -114,7 +114,6 @@ renameExpr (Record a ds) = do
   env' <- makeRecEnv ds
   Record a <$> local (const env') (renameSortDecls ds)
 renameExpr (Ref a n) = Ref a <$> renameNameRef n
-renameExpr e@(UniqueRef _ _) = return e
 renameExpr (Member a e n) = Member a <$> renameExpr e <*> pure n
 renameExpr (OpChain a e os) = OpChain a <$> mapM renameExpr e <*> mapM f os
   where

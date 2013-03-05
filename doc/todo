@@ -4,6 +4,10 @@ TO-DO
 
 Write the infix operator analysis phase
 
+  It might be simpler if there were no nested Member expressions
+
+    This would be easy to fix in the parser
+
 Write the module type-checker
 
 Write the type type-checker

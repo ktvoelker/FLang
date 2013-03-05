@@ -12,6 +12,8 @@ type M = ReaderT InfixEnv FM
 data Fixity = Fixity InfixAssoc Integer 
   deriving (Show)
 
+defFixity = Fixity InfixLeft 100
+
 cmp :: Fixity -> Fixity -> Maybe Ordering
 cmp (Fixity a1 n1) (Fixity a2 n2) =
   if n1 == n2
@@ -33,39 +35,64 @@ minimumByM = f $ error "Empty list"
 
 pick :: [(BindName, Fixity)] -> FM BindName
 pick = (fmap fst .) $ minimumByM $ \p1@(_, f1) p2@(_, f2) -> case cmp f1 f2 of
-  Nothing -> fatal $ fixityErr p1 p2
+  Nothing -> fatal $ incomparableErr p1 p2
   Just o -> return o
 
-fixityErr :: (BindName, Fixity) -> (BindName, Fixity) -> Err
-fixityErr = todo
+incomparableErr :: (BindName, Fixity) -> (BindName, Fixity) -> Err
+incomparableErr = todo
 
 type InfixEnv = Map BindName Fixity
 
 eliminateInfix :: Global -> FM Global
 eliminateInfix = (gRoot ^%%= flip runReaderT Map.empty . elimExpr)
 
--- TODO Check that infix declarations are always in the same Rec as the binding
--- TODO Eliminate OpChain expressions according to fixity, using defaults as needed
+with :: (MonadReader InfixEnv m) => [(BindName, Fixity)] -> m a -> m a
+with = local . Map.union . Map.fromList
+
+findFixity :: [Decl t] -> BindName -> Fixity
+findFixity = todo
+
+fixities :: Decl t -> [(BindName, Fixity)]
+fixities = todo findFixity
+
+unboundErr :: (BindName, Fixity) -> Err
+unboundErr = todo
+
+withDecls :: [Decl t] -> M a -> M a
+withDecls ds m = mapM_ (lift . report . unboundErr) bad >> with pairs m
+  where
+    bs = concatMap binds ds
+    defs, good, bad, pairs :: [(BindName, Fixity)]
+    -- Every binding paired with the default fixity.
+    defs = zip bs $ repeat defFixity
+    -- Every binding that has a declared fixity paired with that fixity.
+    (good, bad) = partition ((`elem` bs) . fst) $ concatMap fixities ds
+    -- Map.fromList takes the last list element with a particular key, so the list
+    -- of defaults has to precede the list of declared fixities.
+    pairs = defs ++ good
 
 elimExpr :: Expr t -> M (Expr t)
-elimExpr = todo pick
-{-
-    Lam       :: [Binder t] -> Expr t -> Expr t
-    App       :: Expr t -> [Expr t] -> Expr t
-    Record    :: [Decl t] -> Expr t
-    Ref       :: BindName -> Expr t
-    UniqueRef :: Integer -> Expr t
-    Member    :: Expr t -> BindName -> Expr t
-    OpChain   :: Maybe (Expr t) -> [(Expr t, Expr t)] -> Expr t
-    Let       :: [Decl t] -> Expr t -> Expr t
-    ToDo      :: Expr t
-    LamCase   :: [CaseClause] -> Expr Val
-    Case      :: Expr Val -> [CaseClause] -> Expr Val
-    Do        :: [DoElem] -> Expr Val
-    Lit       :: Lit t -> Expr t
--}
+elimExpr (Lam a bs e) =
+  Lam a bs <$> with (zip (map binderName bs) (repeat defFixity)) (elimExpr e)
+elimExpr (App a fn args) = App a <$> elimExpr fn <*> mapM elimExpr args
+elimExpr (Record a ds) = Record a <$> mapM elimDecl ds
+elimExpr e@(Ref _ _) = return e
+elimExpr (Member a e n) = Member a <$> elimExpr e <*> pure n
+elimExpr (OpChain _ _ _) = todo pick
+elimExpr (Let a ds body) =
+  withDecls ds $ Let a <$> mapM elimDecl ds <*> elimExpr body
+elimExpr e@(ToDo _) = return e
+elimExpr (LamCase a cs) = LamCase a <$> mapM elimCaseClause cs
+elimExpr (Case a scru cs) = Case a <$> elimExpr scru <*> mapM elimCaseClause cs
+elimExpr (Do a es) = Do a <$> elimDo es
+elimExpr e@(Lit _ _) = return e
 
--- elimDecl :: Decl t -> M (Decl t)
--- elimDecl = todo
+elimDecl :: Decl t -> M (Decl t)
+elimDecl = todo
 
+elimCaseClause :: CaseClause -> M CaseClause
+elimCaseClause = todo
+
+elimDo :: [DoElem] -> M [DoElem]
+elimDo = todo
 
