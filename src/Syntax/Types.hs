@@ -50,7 +50,7 @@ annotateExcept ["Binder", "Binding"] [d|
     App       :: Expr t -> [Expr t] -> Expr t
     Record    :: [Decl t] -> Expr t
     Ref       :: BindName -> Expr t
-    Member    :: Expr t -> BindName -> Expr t
+    Member    :: Expr t -> [BindName] -> Expr t
     OpChain   :: Maybe (Expr t) -> [(Expr t, Expr t)] -> Expr t
     Let       :: [Decl t] -> Expr t -> Expr t
     ToDo      :: Expr t

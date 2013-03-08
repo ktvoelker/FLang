@@ -130,10 +130,9 @@ instance Pretty (Expr t) SyntaxKind where
     tt "rec"
     tellBrackets "{" "}" $ mapM_ tokens ds
   tokens (Ref _ name) = tokens name
-  tokens (Member _ e name) = do
+  tokens (Member _ e names) = do
     tokens e
-    t1 SKOper "."
-    tokens name
+    mapM_ (\name -> t1 SKOper "." >> tokens name) names
   tokens (OpChain _ x xs) = f $ mapM_ (\(o, e) -> tokens o >> tokens e) xs
     where
       f = case x of

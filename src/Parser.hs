@@ -181,7 +181,7 @@ oper = tok "operator" $ \t -> case t of
 bindName :: Parser BindName
 bindName = fmap mkBindName $ ident <|> parens oper
 
-ref :: Parser (Expr k)
+ref :: Parser (Expr t)
 ref = fmap (mkRef . mkBindName) ident
 
 tyRel :: Parser TyBound
@@ -227,7 +227,7 @@ valOp = tok "operator" $ \t -> case t of
   TExprOp xs -> Just . mkRef . mkBindName $ xs
   _ -> Nothing
 
-expr :: String -> Parser (Expr k) -> Parser (Expr k) -> Parser (Expr k)
+expr :: String -> Parser (Expr t) -> Parser (Expr t) -> Parser (Expr t)
 expr descr op prim =
   do
     h <- exprApp prim
@@ -240,22 +240,20 @@ expr descr op prim =
   <?>
   descr
 
-exprOp :: Parser (Expr k) -> Parser (Expr k) -> Parser (Expr k, Expr k)
+exprOp :: Parser (Expr t) -> Parser (Expr t) -> Parser (Expr t, Expr t)
 exprOp op prim = do
   o <- op
   a <- exprApp prim
   return (o, a)
 
-exprApp :: Parser (Expr k) -> Parser (Expr k)
+exprApp :: Parser (Expr t) -> Parser (Expr t)
 exprApp prim = do
   h <- exprMember prim
   t <- many $ exprMember prim
   return $ mkApp h t
 
-exprMember prim = do
-  h <- prim
-  t <- many $ kw "." >> bindName
-  return $ foldl mkMember h t
+exprMember :: Parser (Expr t) -> Parser (Expr t)
+exprMember prim = mkMember <$> prim <*> (many $ kw "." >> bindName)
 
 localBind = do
   n <- bindName
@@ -381,7 +379,7 @@ patName = do
   return $ case ns of
     [] -> error "Impossible!"
     [n] | namespace n == NsValues -> mkPatBind n
-    (n : ns) -> mkPatApp (foldl mkMember (mkRef n) ns) []
+    (n : ns) -> mkPatApp (mkMember (mkRef n) ns) []
 
 patApp :: Parser Pat
 patApp = do
@@ -390,7 +388,7 @@ patApp = do
   return $ case ns of
     [] -> error "Impossible!"
     [n] | null ps && namespace n == NsValues -> mkPatBind n
-    (n : ns) -> mkPatApp (foldl mkMember (mkRef n) ns) ps
+    (n : ns) -> mkPatApp (mkMember (mkRef n) ns) ps
 
 ty :: Parser TyExpr
 ty = do

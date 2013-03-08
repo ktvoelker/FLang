@@ -49,11 +49,9 @@ eliminateInfix = (gRoot ^%%= flip runReaderT Map.empty . elimExpr)
 with :: (MonadReader InfixEnv m) => [(BindName, Fixity)] -> m a -> m a
 with = local . Map.union . Map.fromList
 
-findFixity :: [Decl t] -> BindName -> Fixity
-findFixity = todo
-
 fixities :: Decl t -> [(BindName, Fixity)]
-fixities = todo findFixity
+fixities (Infix _ a n names) = map (, Fixity a n) names
+fixities _ = []
 
 unboundErr :: (BindName, Fixity) -> Err
 unboundErr = todo
@@ -89,10 +87,34 @@ elimExpr e@(Lit _ _) = return e
 
 elimDecl :: Decl t -> M (Decl t)
 elimDecl = todo
+{-
+    Constraint :: Expr Ty -> TyCompOp -> Expr Ty -> Decl Ty
+    ValField   :: BindName -> Expr Ty -> Decl Ty
+    TyField    :: BindName -> Maybe TyBound -> Decl Ty
+    ModField   :: BindName -> Expr Ty -> Decl Ty
+    -- TODO: Combine BindLocal and BindVal when the necessary predicate
+    -- (TyTag t ~ Ty) is supported by Template Haskell.
+    BindLocal  :: Binding Val -> Decl Val
+    BindVal    :: Binding Val -> Decl Mod
+    BindMod    :: Binding Mod -> Decl Mod
+    BindSig    :: Binding Ty -> Decl Mod
+    BindTy     :: Binding Ty -> Decl Mod
+    Infix      :: InfixAssoc -> Integer -> [BindName] -> Decl Mod
+    Data       :: DataMode -> BindName -> Maybe (Expr Ty) -> Expr Ty -> [Decl Mod]
+               -> Decl Mod
+-}
 
 elimCaseClause :: CaseClause -> M CaseClause
 elimCaseClause = todo
+{-
+    CaseClause Pat (Expr Val)
+-}
 
 elimDo :: [DoElem] -> M [DoElem]
 elimDo = todo
+{-
+    DoLet [Decl Val]
+    DoBind Pat (Expr Val)
+    DoExpr (Expr Val)
+-}
 
