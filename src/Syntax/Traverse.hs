@@ -128,17 +128,17 @@ mapPat' = \case
   PatBind a b -> PatBind a <$> mapNameBind b
   lit -> return lit
 
+-- TODO make it tail-recursive
 mapDo :: (C m) => [DoElem] -> M e m [DoElem]
-mapDo = todo
-{-
 mapDo [] = return []
 mapDo (DoLet a ds : xs) = do
-  -- TODO we need to do renaming on the decls
   env' <- makeRecEnv ds
-  (DoLet a ds :) <$> local (const env') (mapDo xs)
+  local (fstLens ^= env')
+    $ (:) <$> (layer onDoElem $ DoLet a <$> mapM mapDecl ds) <*> mapDo xs
 mapDo (DoBind a p v : xs) = do
   (p', env') <- mapPat p
-  (:) <$> (DoBind a p' <$> mapExpr v) <*> local (const env') (mapDo xs)
-mapDo (DoExpr a e : xs) = (:) <$> (DoExpr a <$> mapExpr e) <*> mapDo xs
--}
+  local (fstLens ^= env')
+    $ (:) <$> (layer onDoElem $ DoBind a p' <$> mapExpr v) <*> mapDo xs
+mapDo (DoExpr a e : xs) =
+  (:) <$> (layer onDoElem $ DoExpr a <$> mapExpr e) <*> mapDo xs
 
