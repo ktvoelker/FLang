@@ -47,7 +47,10 @@ Executable fc
     GADTs
     DataKinds
     TypeFamilies
+    RankNTypes
+    ConstraintKinds
     StandaloneDeriving
+    LambdaCase
   other-extensions:
     TemplateHaskell
     UndecidableInstances

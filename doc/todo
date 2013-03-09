@@ -4,6 +4,16 @@ TO-DO
 
 Write the infix analysis phase
 
+  This is starting to seem really similar to the renamer. That makes sense because
+  both have to construct the lexical environment as they go down the tree. So this
+  is a duplication that needs to be eliminated.
+
+  We should be able to extract a general traversal of the tree from the renamer,
+  but parameterize that traversal on a set of functions that edit each node type.
+
+  We might need some special parameterization to handle what happens when
+  things are being added to the environment.
+
 Write the module type-checker
 
 Write the type type-checker
