@@ -1,11 +1,20 @@
 
-module Syntax.Traverse where
+module Syntax.Traverse
+  ( BindMap, Env(..), ePath, eBinds, eScope, Traversal(..), emptyTraversal, mapProgram
+  ) where
 
 import qualified Data.Map as Map
 
 import Common
 import Syntax.Traverse.Types
 import Syntax
+
+mapProgram
+  :: (Functor m, Applicative m, Monad m)
+  => Traversal e m
+  -> Expr t
+  -> m (Expr t)
+mapProgram t = flip runReaderT (emptyEnv, t) . mapExpr
 
 type C m = (Functor m, Applicative m, Monad m)
 
