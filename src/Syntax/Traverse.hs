@@ -9,15 +9,16 @@ import Syntax
 
 type C m = (Functor m, Applicative m, Monad m)
 
-withBindsInScope :: (C m) => R e m b -> R e m b
--- TODO rewrite using lenses
+withBindsInScope :: (C m) => M e m b -> M e m b
 withBindsInScope =
-  local $ \env -> env { _eScope = Map.union (_eBinds env) (_eScope env) }
+  local $ (fstLens ^%=) $ \env -> (eScope ^%= Map.union (eBinds ^$ env)) env
 
-layer :: (C m) => Lens (Traversal e m) (b -> R e m b) -> M e m b -> M e m b
-layer lens monad = do
-  editor <- asks $ lens . snd
-  withReaderT fst $ fmap editor monad
+layer :: (C m) => (Traversal e m -> a -> R e m b) -> M e m a -> M e m b
+layer getEditor monad = do
+  editors <- asks snd
+  let editorR = getEditor editors
+  let editorM = withReaderT fst . editorR
+  monad >>= editorM
 
 mapDecl :: (C m) => Decl t -> M e m (Decl t)
 mapDecl = layer onDecl . \case
@@ -63,64 +64,62 @@ mapBinder :: (C m) => Binder k -> M e m (Binder k)
 mapBinder = layer onBinder . \case
   Binder name ty -> Binder <$> mapNameBind name <*> mapM mapExpr ty
 
-makeRecEnv :: (C m) => [Decl t] -> M e m (Env e)
+makeRecEnv :: forall e m t. (C m) => [Decl t] -> M e m (Env e)
 makeRecEnv ds = do
-  env <- ask
-  newPairs <-
-    layer onRecScope
-    $ return
-    $ Map.fromList
-    $ ds >>= \d -> zip (binds d) (repeat d)
+  env <- asks fst
+  let bMap = Map.fromList $ ds >>= \d -> zip (binds d) (repeat d)
+  newPairs <- layer onRecScope $ return bMap
   let f = (^%= Map.union newPairs)
   return $ f eBinds $ f eScope env
 
 makeBindEnv :: (C m) => (Binds a) => [a] -> M e m (Env e)
 makeBindEnv ds = do
-  env <- ask
-  newPairs <-
-    layer onLamScope
-    $ return
-    $ Map.fromList
-    $ ds >>= \d -> zip (binds d) (repeat ())
+  env <- asks fst
+  let bMap = Map.fromList $ ds >>= \d -> zip (binds d) (repeat ())
+  newPairs <- layer onLamScope $ return bMap
   let f = (^%= Map.union newPairs)
   return $ f eBinds env
 
 mapExpr :: (C m) => Expr t -> M e m (Expr t)
-mapExpr = layer onExpr . \case
+mapExpr = \case
   Lam a bs e -> do
     env' <- makeBindEnv bs
-    local (const env') $ Lam a <$> mapBinders bs <*> withBindsInScope (mapExpr e)
-  App a f as -> App a <$> mapExpr f <*> mapM mapExpr as
+    layer onExpr
+      $ local (fstLens ^= env')
+      $ Lam a <$> mapBinders bs <*> withBindsInScope (mapExpr e)
   Record a ds -> do
-    -- TODO is this wrong?
-    -- Should the local environment be applied to the layering function?
     env' <- makeRecEnv ds
-    local (const env') $ Record a <$> mapM mapDecl ds
-  Ref a n -> Ref a <$> mapNameRef n
-  Member a e n -> Member a <$> mapExpr e <*> pure n
-  OpChain a e os -> OpChain a <$> mapM mapExpr e <*> mapM f os
-    where
-      f (a, b) = (,) <$> mapExpr a <*> mapExpr b
+    layer onExpr $ local (fstLens ^= env') $ Record a <$> mapM mapDecl ds
   Let a ds e -> do
     env' <- makeRecEnv ds
-    local (const env') $ Let a <$> mapM mapDecl ds <*> mapExpr e
-  e@(ToDo _) -> return e
-  LamCase a xs -> LamCase a <$> mapM mapCaseClause xs
-  Case a e xs -> Case a <$> mapExpr e <*> mapM mapCaseClause xs
-  Do a xs -> Do a <$> mapDo xs
-  lit@(Lit _ _) -> return lit
+    layer onExpr $ local (fstLens ^= env') $ Let a <$> mapM mapDecl ds <*> mapExpr e
+  e -> layer onExpr $ case e of
+    App a f as -> App a <$> mapExpr f <*> mapM mapExpr as
+    Ref a n -> Ref a <$> mapNameRef n
+    Member a e n -> Member a <$> mapExpr e <*> pure n
+    OpChain a e os -> OpChain a <$> mapM mapExpr e <*> mapM f os
+      where
+        f (a, b) = (,) <$> mapExpr a <*> mapExpr b
+    e@ToDo{} -> return e
+    LamCase a xs -> LamCase a <$> mapM mapCaseClause xs
+    Case a e xs -> Case a <$> mapExpr e <*> mapM mapCaseClause xs
+    Do a xs -> Do a <$> mapDo xs
+    lit@Lit{} -> return lit
+    Lam{} -> impossible
+    Record{} -> impossible
+    Let{} -> impossible
 
 mapCaseClause :: (C m) => CaseClause -> M e m CaseClause
 mapCaseClause = \case
   CaseClause a p v -> do
     (p', env') <- mapPat p
-    local (const env') $ withBindsInScope $ CaseClause a p' <$> mapExpr v
+    local (fstLens ^= env') $ withBindsInScope $ CaseClause a p' <$> mapExpr v
 
 mapPat :: (C m) => Pat -> M e m (Pat, Env e)
 mapPat = \case
   pat -> do
     env' <- makeBindEnv [pat]
-    local (const env') $ (, env') <$> mapPat' pat
+    local (fstLens ^= env') $ (, env') <$> mapPat' pat
 
 mapPat' :: (C m) => Pat -> M e m Pat
 mapPat' = \case

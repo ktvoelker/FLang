@@ -6,6 +6,9 @@ import Import
 todo :: a
 todo = error "Not implemented"
 
+impossible :: a
+impossible = error "Impossible"
+
 readMaybe :: (Read a) => String -> Maybe a
 readMaybe = fmap fst . listToMaybe . reads
 

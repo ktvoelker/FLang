@@ -12,6 +12,8 @@ import Syntax
 
 import Text.Show.Pretty
 
+import Syntax.Traverse
+
 runPhase :: (MonadIO m) => (i -> FM String) -> i -> m ()
 runPhase f xs = liftIO . mapM_ putStrLn $ maybeToList out ++ map ppShow errs
   where
