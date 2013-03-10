@@ -29,36 +29,47 @@ layer getEditor monad = do
   let editorM = withReaderT fst . editorR
   monad >>= editorM
 
+pushBind :: (MonadReader (Env e, t) m) => BindName -> m a -> m a
+pushBind name = local $ (ePath . fstLens) ^%= (name :)
+
 mapDecl :: (C m) => Decl t -> M e m (Decl t)
 mapDecl = layer onDecl . \case
   Constraint ann a o b ->
     Constraint ann <$> mapExpr a <*> pure o <*> mapExpr b
-  ValField a n e -> ValField a <$> mapNameBind n <*> mapExpr e
-  TyField a n ty -> TyField a <$> mapNameBind n <*> ty'
+  ValField a n e -> do
+    n' <- mapNameBind n
+    pushBind n' $ ValField a n' <$> mapExpr e
+  TyField a n ty -> do
+    n' <- mapNameBind n
+    pushBind n' $ TyField a n' <$> ty'
     where
       ty' = case ty of
         Nothing -> pure Nothing
         Just (TyBound a o e) -> Just . TyBound a o <$> mapExpr e
-  ModField a n e -> ModField a <$> mapNameBind n <*> mapExpr e
+  ModField a n e -> do
+    n' <- mapNameBind n
+    pushBind n' $ ModField a n' <$> mapExpr e
   BindLocal a b -> BindLocal a <$> mapBinding b
   BindMod a b -> BindMod a <$> mapBinding b
   BindSig a b -> BindSig a <$> mapBinding b
   BindVal a b -> BindVal a <$> mapBinding b
   BindTy a b -> BindTy a <$> mapBinding b
   Data a m n p t ds -> do
-    n'  <- mapNameBind n
-    p'  <- maybe (return Nothing) (fmap Just . mapExpr) p
-    t'  <- mapExpr t
-    ds' <- mapM mapDecl ds
-    return $ Data a m n' p' t' ds'
+    n' <- mapNameBind n
+    pushBind n' $ do
+      p'  <- maybe (return Nothing) (fmap Just . mapExpr) p
+      t'  <- mapExpr t
+      ds' <- mapM mapDecl ds
+      return $ Data a m n' p' t' ds'
   Infix ann a p ns -> Infix ann a p <$> mapM mapNameRef ns
 
 mapBinding :: (C m) => Binding k -> M e m (Binding k)
 mapBinding = layer onBinding . \case
   Binding (Binder n t) e -> do
     n' <- mapNameBind n
-    t' <- maybe (return Nothing) (fmap Just . mapExpr) t
-    Binding (Binder n' t') <$> mapExpr e
+    pushBind n' $ do
+      t' <- maybe (return Nothing) (fmap Just . mapExpr) t
+      Binding (Binder n' t') <$> mapExpr e
 
 mapNameRef :: (C m) => BindName -> M e m BindName
 mapNameRef = layer onNameRef . return
