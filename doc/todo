@@ -2,14 +2,12 @@
 TO-DO
 =====
 
-Test the genericized renamer
+Rewrite (and finish) the infix analysis phase to use the generic traversal
 
-  Should the traversal of nested data declarations treat them as if they were not
-  nested?
+Should the traversal of nested data declarations treat them as if they were not
+nested?
 
 See if we can generalize the Field decls the same way we did the Binds with Binding
-
-Rewrite (and finish) the infix analysis phase to use the generic traversal
 
 Write QuickCheck tests
 

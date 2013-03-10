@@ -32,7 +32,10 @@ allocUnique = rsNextUnique %= (+ 1)
 insertRef :: Integer -> M ()
 insertRef n = do
   path <- asks (ePath ^$)
-  lift $ focus rsRefs $ mapM_ (\name -> mapLens name %= fmap (Set.insert n)) path
+  lift
+    . focus rsRefs
+    . mapM_ (\name -> mapLens name %= Just . maybe Set.empty (Set.insert n))
+    $ path
 
 renameNameFrom :: Lens (Env Integer) (Map BindName Integer) -> BindName -> M BindName
 renameNameFrom field n@(BindName a xs) = do
@@ -65,13 +68,10 @@ renameSortDecls :: [Decl t] -> M [Decl t]
 renameSortDecls ds = do
   lift
   $ focus rsRefs
-  $ mapM (\d -> (d,) <$> mapM (access . mapLens) (binds d)) ds
-  >>= mapM check
+  $ mapM (\d -> (d,) . f <$> mapM (access . mapLens) (binds d)) ds
   >>= lift . sortDecls
   where
-    check (decl, refs) = case sequence refs of
-      Nothing -> impossible
-      Just refs' -> return (decl, Set.unions refs')
+    f = maybe Set.empty Set.unions . sequence
 
 renameExpr :: Expr t -> M (Expr t)
 renameExpr (Record a ds) = Record a <$> renameSortDecls ds

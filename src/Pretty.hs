@@ -1,5 +1,5 @@
 
-module Pretty where
+module Pretty (Pretty(..), TokenKind(..), Token(..), pretty) where
 
 import Common
 import Pretty.Internal

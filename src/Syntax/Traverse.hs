@@ -125,9 +125,9 @@ mapExpr = \case
     Case a e xs -> Case a <$> mapExpr e <*> mapM mapCaseClause xs
     Do a xs -> Do a <$> mapDo xs
     lit@Lit{} -> return lit
-    Lam{} -> impossible
-    Record{} -> impossible
-    Let{} -> impossible
+    Lam{} -> impossible "reached unreachable pattern Lam{} in mapExpr"
+    Record{} -> impossible "reached unreachable pattern Record{} in mapExpr"
+    Let{} -> impossible "reached unreachable pattern Let{} in mapExpr"
 
 mapCaseClause :: (C m) => CaseClause -> M e m CaseClause
 mapCaseClause = \case
