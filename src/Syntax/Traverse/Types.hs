@@ -12,13 +12,13 @@ type BindMap e = Map BindName e
 
 data Env e =
   Env
-  { _ePath  :: Maybe [BindName]
+  { _ePath  :: [BindName]
   , _eScope :: BindMap e
   , _eBinds :: BindMap e
   } deriving (Eq, Ord, Show)
 
 emptyEnv :: Env e
-emptyEnv = Env (Just []) Map.empty Map.empty
+emptyEnv = Env [] Map.empty Map.empty
 
 type R e m = ReaderT (Env e) m
 

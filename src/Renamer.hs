@@ -7,13 +7,11 @@ import qualified Data.Set as Set
 import Common
 import Syntax
 import Syntax.Traverse
-import Types
 
 import Renamer.Sorter
+import Renamer.Types
 
-type AR = AccumT (Set Integer)
-
-type M' = StateT Global (AR FM)
+type M' = StateT RenamerState FM
 
 type M = ReaderT (Env Integer) M'
 
@@ -22,24 +20,19 @@ renameTraversal =
   (emptyTraversal makeScope makeScope)
   { onNameRef    = renameNameRef
   , onNameBind   = renameNameBind
-  , onDecl       = renameDecl
   , onExpr       = renameExpr
   }
 
-rename :: Program -> FM Global
-rename p =
-  evalAccumT (execStateT f $ emptyGlobal p) Set.empty Set.union
-  where
-    f = do
-      result <- gRoot %>>= mapProgram renameTraversal
-      lift $ getAccum >>= lift . internal
-      return result
+rename :: Program -> FM Program
+rename = evalStateT (rsProgram %>>= mapProgram renameTraversal) . emptyRenamerState
 
-allocUnique :: (MonadState Global m) => m Integer
-allocUnique = gNextUnique %= (+ 1)
+allocUnique :: (MonadState RenamerState m) => m Integer
+allocUnique = rsNextUnique %= (+ 1)
 
-insertRef :: (Monad m) => Integer -> AR m ()
-insertRef n = getAccum >>= putAccum . Set.insert n
+insertRef :: Integer -> M ()
+insertRef n = do
+  path <- asks (ePath ^$)
+  lift $ focus rsRefs $ mapM_ (\name -> mapLens name %= fmap (Set.insert n)) path
 
 renameNameFrom :: Lens (Env Integer) (Map BindName Integer) -> BindName -> M BindName
 renameNameFrom field n@(BindName a xs) = do
@@ -47,7 +40,7 @@ renameNameFrom field n@(BindName a xs) = do
   let z = Map.lookup n $ env ^. field
   case z of
     Nothing -> do
-      lift3
+      lift2
         . report
         $ Err EUnbound (a ^. annSourcePos) (Just n) Nothing
       return n
@@ -58,7 +51,7 @@ renameNameRef :: BindName -> M BindName
 renameNameRef n = do
   n' <- renameNameFrom eScope n
   case n' of
-    UniqueName _ z _ -> lift2 . insertRef $ z
+    UniqueName _ z _ -> insertRef z
     _ -> return ()
   return n'
 
@@ -69,10 +62,16 @@ makeScope :: BindMap a -> M (BindMap Integer)
 makeScope = mapM (const allocUnique)
 
 renameSortDecls :: [Decl t] -> M [Decl t]
-renameSortDecls = lift3 . sortDecls
-
-renameDecl :: Decl t -> M (Decl t)
-renameDecl = branch . return
+renameSortDecls ds = do
+  lift
+  $ focus rsRefs
+  $ mapM (\d -> (d,) <$> mapM (access . mapLens) (binds d)) ds
+  >>= mapM check
+  >>= lift . sortDecls
+  where
+    check (decl, refs) = case sequence refs of
+      Nothing -> impossible
+      Just refs' -> return (decl, Set.unions refs')
 
 renameExpr :: Expr t -> M (Expr t)
 renameExpr (Record a ds) = Record a <$> renameSortDecls ds

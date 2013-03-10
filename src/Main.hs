@@ -3,7 +3,7 @@ module Main where
 
 import Common
 import Common.IO
-import Infix
+--import Infix
 import Lexer
 import Parser
 import Pretty
@@ -11,8 +11,6 @@ import Renamer
 import Syntax
 
 import Text.Show.Pretty
-
-import Syntax.Traverse
 
 runPhase :: (MonadIO m) => (i -> FM String) -> i -> m ()
 runPhase f xs = liftIO . mapM_ putStrLn $ maybeToList out ++ map ppShow errs
@@ -27,13 +25,13 @@ parsePhase = lexPhase' >=> mapM (uncurry parse)
 
 renamePhase = parsePhase >=> rename . mkRecord
 
-infixPhase = renamePhase >=> eliminateInfix
+--infixPhase = renamePhase >=> eliminateInfix
 
 phases =
   [ ("lex", runPhase $ lexPhase >=> return . concatMap ppShow)
   , ("parse", runPhase $ parsePhase >=> return . concatMap pretty)
   , ("rename", runPhase $ renamePhase >=> return . pretty)
-  , ("infix", runPhase $ infixPhase >=> return . pretty)
+  --, ("infix", runPhase $ infixPhase >=> return . pretty)
   ]
 
 getInput xs = fmap (xs,) $ case xs of

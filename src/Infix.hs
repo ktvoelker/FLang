@@ -5,7 +5,6 @@ import qualified Data.Map as Map
 
 import Common
 import Syntax
-import Types
 
 type M = ReaderT InfixEnv FM
 

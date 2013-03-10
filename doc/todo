@@ -2,26 +2,9 @@
 TO-DO
 =====
 
-Rewrite the renamer to use the generic traversal
+Make the generic traversal keep ePath correct
 
-  We didn't properly account for the weirdness of AccumT
-
-  Here's a cleaner solution to replace AccumT: use ST!
-    Specifically, we are (almost) always inside some definition. So, let's say that
-    when we allocate an entry in the environment, we give it both an Integer and an
-    STRef (Set Integer). We also keep a special pointer around to the STRef of the
-    current innermost definition. When we see a reference, add it to the set of the
-    current innermost definition. When we bubble up out of a definition (i.e., in
-    renameDecl), we take all the references of the old innermost definition and copy
-    them into the set of its parent.
-
-      Actually, if we have to keep a stack of the definitions we are in, then we
-      can just update all of their ST sets when the reference is seen.
-
-      Also, we already have this stack! It's called ePath. We just aren't using it.
-      That needs to go into the generic traversal.
-
-      SWEET
+Test the genericized renamer
 
 Rewrite (and finish) the infix analysis phase to use the generic traversal
 
