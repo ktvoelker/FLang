@@ -5,11 +5,12 @@ import qualified Data.Map as Map
 
 import Common
 import Syntax
-
-type M = ReaderT InfixEnv FM
+import Syntax.Traverse
 
 data Fixity = Fixity InfixAssoc Integer 
   deriving (Show)
+
+type M = ReaderT (Env Fixity) FM
 
 defFixity = Fixity InfixLeft 100
 
@@ -40,10 +41,17 @@ pick = (fmap fst .) $ minimumByM $ \p1@(_, f1) p2@(_, f2) -> case cmp f1 f2 of
 incomparableErr :: (BindName, Fixity) -> (BindName, Fixity) -> Err
 incomparableErr = todo
 
-type InfixEnv = Map BindName Fixity
+elimTraversal :: Traversal Fixity M
+elimTraversal =
+  (emptyTraversal (makeScope []) makeScope)
+  { onExpr       = elimExpr
+  }
+
+makeScope :: BindMap a -> M (BindMap Fixity)
+makeScope = todo
 
 eliminateInfix :: Global -> FM Global
-eliminateInfix = (gRoot ^%%= flip runReaderT Map.empty . elimExpr)
+eliminateInfix = (gRoot ^%%= flip runReaderT Map.empty . mapProgram elimTraversal)
 
 with :: (MonadReader InfixEnv m) => [(BindName, Fixity)] -> m a -> m a
 with = local . Map.union . Map.fromList
@@ -69,6 +77,8 @@ withDecls ds m = mapM_ (lift . report . unboundErr) bad >> with pairs m
     pairs = defs ++ good
 
 elimExpr :: Expr t -> M (Expr t)
+elimExpr = todo
+{-
 elimExpr (Lam a bs e) =
   Lam a bs <$> with (zip (map binderName bs) (repeat defFixity)) (elimExpr e)
 elimExpr (App a fn args) = App a <$> elimExpr fn <*> mapM elimExpr args
@@ -83,6 +93,7 @@ elimExpr (LamCase a cs) = LamCase a <$> mapM elimCaseClause cs
 elimExpr (Case a scru cs) = Case a <$> elimExpr scru <*> mapM elimCaseClause cs
 elimExpr (Do a es) = Do a <$> elimDo es
 elimExpr e@(Lit _ _) = return e
+-}
 
 elimDecl :: Decl t -> M (Decl t)
 elimDecl = todo

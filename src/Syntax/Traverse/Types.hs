@@ -34,13 +34,13 @@ data Traversal e m =
   , onCaseClause :: CaseClause -> R e m CaseClause
   , onDoElem     :: DoElem -> R e m DoElem
   , onLamScope   :: BindMap () -> R e m (BindMap e)
-  , onRecScope   :: forall t. BindMap (Decl t) -> R e m (BindMap e)
+  , onRecScope   :: forall t. [Decl t] -> BindMap (Decl t) -> R e m (BindMap e)
   }
 
 emptyTraversal
   :: (Monad m)
   => (BindMap () -> R e m (BindMap e))
-  -> (forall t. BindMap (Decl t) -> R e m (BindMap e))
+  -> (forall t. [Decl t] -> BindMap (Decl t) -> R e m (BindMap e))
   -> Traversal e m
 emptyTraversal = Traversal
   return return return
@@ -48,7 +48,7 @@ emptyTraversal = Traversal
   return return return
 
 simpleTraversal :: (Monad m) => Traversal () m
-simpleTraversal = emptyTraversal return (return . Map.map (const ()))
+simpleTraversal = emptyTraversal return (const $ return . Map.map (const ()))
 
 makeLenses [''Env]
 

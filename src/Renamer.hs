@@ -17,7 +17,7 @@ type M = ReaderT (Env Integer) M'
 
 renameTraversal :: Traversal Integer M'
 renameTraversal =
-  (emptyTraversal makeScope makeScope)
+  (emptyTraversal makeScope (const makeScope))
   { onNameRef    = renameNameRef
   , onNameBind   = renameNameBind
   , onExpr       = renameExpr

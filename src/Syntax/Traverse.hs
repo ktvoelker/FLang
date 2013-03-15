@@ -29,6 +29,13 @@ layer getEditor monad = do
   let editorM = withReaderT fst . editorR
   monad >>= editorM
 
+layer2 :: (C m) => (Traversal e m -> a -> b -> R e m c) -> a -> M e m b -> M e m c
+layer2 getEditor arg monad = do
+  editors <- asks snd
+  let editorR = getEditor editors
+  let editorM = withReaderT fst . editorR arg
+  monad >>= editorM
+
 pushBind :: (MonadReader (Env e, t) m) => BindName -> m a -> m a
 pushBind name = local $ (ePath . fstLens) ^%= (name :)
 
@@ -88,7 +95,7 @@ makeRecEnv :: forall e m t. (C m) => [Decl t] -> M e m (Env e)
 makeRecEnv ds = do
   env <- asks fst
   let bMap = Map.fromList $ ds >>= \d -> zip (binds d) (repeat d)
-  newPairs <- layer onRecScope $ return bMap
+  newPairs <- layer2 onRecScope ds $ return bMap
   let f = (^%= Map.union newPairs)
   return $ f eBinds $ f eScope env
 

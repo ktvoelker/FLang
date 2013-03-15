@@ -2,7 +2,7 @@
 TO-DO
 =====
 
-Rewrite (and finish) the infix analysis phase to use the generic traversal
+Finish the infix analysis phase using the generic traversal
 
 Should the traversal of nested data declarations treat them as if they were not
 nested?
