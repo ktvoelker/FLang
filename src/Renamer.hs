@@ -47,7 +47,7 @@ renameNameFrom field n@(BindName a xs) = do
         . report
         $ Err EUnbound (a ^. annSourcePos) (Just n) Nothing
       return n
-    Just z -> return $ UniqueName a z xs
+    Just z -> return $ srcUniqueName a z xs
 renameNameFrom _ n@(UniqueName _ _ _) = return n
 
 renameNameRef :: BindName -> M BindName

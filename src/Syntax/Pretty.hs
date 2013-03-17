@@ -55,7 +55,7 @@ instance (Pretty (Expr (TyTag k)) SyntaxKind, Pretty (Expr k) SyntaxKind)
 instance Pretty BindName SyntaxKind where
   tokens b = case b of
     BindName _ xs -> f xs
-    UniqueName _ n xs -> f $ xs ++ "_" ++ show n
+    UniqueName _ n info -> f $ (uniqueOrigName ^$ info) ++ "_" ++ show n
     where
       f xs =
         if nameIsText xs

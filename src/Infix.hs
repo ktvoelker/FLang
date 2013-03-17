@@ -72,6 +72,25 @@ elimExpr :: Expr t -> M (Expr t)
 -- TODO think a bit about the various edge cases that will make the IN structure
 -- difficult to work with - there's the section case and the full application case,
 -- for one thing
+--
+-- So we have:
+--
+--   Maybe ArgExpr
+--   [(OpExpr, ArgExpr)]
+--
+--   3 + 4 * 5
+--
+--   Okay, here's how to do it:
+--   1. Treat the values in between the operators as separate list items, but make
+--   sure that the precedence checks can never choose a value to split on.
+--   2. The base case is a one-element list, which will always be just a value - so
+--   just return that value expression.
+--   3. The recursive case has to check whether either side of the split comes up
+--   empty. If so, it has to generate a section rather than recursing on the empty
+--   list. If the left side is empty, generate \x -> o x r; if the right side is empty,
+--   generate \x -> o l x (or just o l). We should add some flags to UniqueName that
+--   can be applied to generated names. In this case, we want a flag for the fact that
+--   the name is the implied parameter in a section.
 elimExpr (OpChain _ _ _) = todo pick
 elimExpr e = return e
 

@@ -2,6 +2,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Syntax.Types where
 
+import Data.Lens.Template
+
 import Annotation
 import Import
 
@@ -38,10 +40,19 @@ data InfixAssoc = InfixLeft | InfixRight | InfixNone
 data TyCompOp = OpSubTy | OpSuperTy | OpEqualTy
   deriving (Eq, Ord, Enum, Bounded, Show)
 
+data UniqueInfo =
+  UniqueInfo
+  { _uniqueOrigName  :: String
+  , _uniqueGenerated :: Bool
+  , _uniqueSection   :: Bool
+  } deriving (Show)
+
+makeLenses [''UniqueInfo]
+
 annotateExcept ["Binder", "Binding"] [d|
 
-  data BindName = BindName String | UniqueName Integer String
-    deriving (Eq, Ord, Show)
+  data BindName = BindName String | UniqueName Integer UniqueInfo
+    deriving (Show)
 
   data Binder t = Binder BindName (Maybe (Expr (TyTag t)))
 
@@ -95,3 +106,24 @@ annotateExcept ["Binder", "Binding"] [d|
   data OpenQual = OpenExcept [BindName] | OpenOnly [BindName]
 
   |]
+
+srcUniqueName :: Ann -> Integer -> String -> BindName
+srcUniqueName ann n xs =
+  UniqueName ann n
+  $ UniqueInfo
+    { _uniqueOrigName  = xs
+    , _uniqueGenerated = False
+    , _uniqueSection   = False
+    }
+
+instance Eq BindName where
+  BindName _ xs == BindName _ ys = xs == ys
+  UniqueName _ m _ == UniqueName _ n _  = m == n
+  _ == _ = False
+
+instance Ord BindName where
+  compare BindName{} UniqueName{} = LT
+  compare UniqueName{} BindName{} = GT
+  compare (BindName _ xs) (BindName _ ys) = compare xs ys
+  compare (UniqueName _ m _) (UniqueName _ n _) = compare m n
+
