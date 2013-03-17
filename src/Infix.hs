@@ -66,7 +66,10 @@ unboundErr :: (BindName, Fixity) -> Err
 unboundErr = todo
 
 elimExpr :: Expr t -> M (Expr t)
-elimExpr (OpChain _ h ts t) = prepare h ts t >>= appTree
+elimExpr (OpChain _ h ts t) = do
+  (bs, is) <- prepare h ts t
+  e <- appTree is
+  return $ foldr (Lam emptyAnn . (: []) . flip Binder Nothing) e bs
 elimExpr e = return e
 
 -- TODO we should identify sections in the prep phase, generate names, and return the
@@ -75,11 +78,22 @@ elimExpr e = return e
 -- result in Lams as necessary for the section vars.
 --
 -- TODO first fix the parser to support right sections (like (3 +))
-prepare :: Maybe (Expr t) -> [(Expr t, Expr t)] -> Maybe (Expr t) -> M [IN t]
+prepare
+  :: Maybe (Expr t)
+  -> [(Expr t, Expr t)]
+  -> Maybe (Expr t)
+  -> M ([BindName], [IN t])
 prepare h ts t = do
-  h' <- mapM prepArg (maybeToList h)
+  h'  <- mapM prepArg $ maybeToList h
   ts' <- mapM (\(o, a) -> sequence [prepOp o, prepArg a]) ts
-  return $ h' ++ concat ts'
+  t'  <- mapM prepOp $ maybeToList t
+  vh  <- case h of
+    Nothing -> sequence [lift sectionVar]
+    Just _  -> return []
+  vt  <- case t of
+    Nothing -> return []
+    Just _  -> sequence [lift sectionVar]
+  return (vh ++ vt, mr vh ++ h' ++ concat ts' ++ t' ++ mr vt)
   where
     prepArg = return . IA
     prepOp (Ref _ n) = do
@@ -88,15 +102,26 @@ prepare h ts t = do
         Nothing -> impossible "Unbound name in prepOp"
         Just f -> return $ IO f n
     prepOp _ = impossible "Unexpected expression in prepOp"
+    mr = map $ IA . Ref emptyAnn
+    sectionVar = do
+      n <- nextUnique
+      return
+        $ UniqueName emptyAnn n
+        $ UniqueInfo
+          { _uniqueOrigName  = "!section"
+          , _uniqueGenerated = True
+          , _uniqueSection   = True
+          }
 
 appTree :: [IN t] -> M (Expr t)
---   2. The base case is a one-element list, which will always be just a value - so
---   just return that value expression.
---
---   3. The recursive case has to check whether either side of the split comes up
---   empty. If so, it has to generate a section rather than recursing on the empty
---   list. If the left side is empty, generate \x -> o x r; if the right side is empty,
---   generate \x -> o l x (or just o l).
-appTree [] = todo
+appTree [] = impossible "Empty list in appTree"
 appTree [IA a] = return a
+appTree [IO _ _] = impossible "List of one operator in appTree"
+appTree xs = do
+  (o, (hs, ts)) <- lift $ pick xs
+  case o of
+    IO _ n -> do
+      args <- sequence [appTree hs, appTree ts]
+      return $ App emptyAnn (Ref emptyAnn n) args
+    IA _ -> impossible "Split on an argument in appTree"
 
