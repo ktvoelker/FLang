@@ -44,3 +44,38 @@ modifyM = (>>= put) . (get >>=)
 
 infixr 4 %>>=
 
+newtype AppendList a = AppendList ([a] -> [a])
+
+emptyAppendList :: AppendList a
+emptyAppendList = AppendList id
+
+appendElem :: a -> AppendList a -> AppendList a
+appendElem x (AppendList f) = AppendList $ f . (x :)
+
+appendList :: [a] -> AppendList a -> AppendList a
+appendList xs (AppendList f) = AppendList $ f . (xs ++)
+
+realizeList :: AppendList a -> [a]
+realizeList (AppendList f) = f []
+
+-- | Get a list of all possible splits of the input list, where the element at each
+-- | position is treated as a pivot (not included in either side of the split).
+splits :: [a] -> [([a], [a])]
+splits = f emptyAppendList emptyAppendList
+  where
+    f acc _ [] = realizeList acc
+    f acc h (t : ts) = f acc' h' ts
+      where
+        h' = appendElem t h
+        acc' = appendElem (realizeList h, ts) acc
+
+minimumByM :: (Monad m) => (a -> a -> m Ordering) -> [a] -> m a
+minimumByM = f $ error "Empty list"
+  where
+    f acc _ [] = return acc
+    f acc c (x : xs) = do
+      o <- c acc x
+      case o of
+        LT -> f x c xs
+        _ -> f acc c xs
+

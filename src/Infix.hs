@@ -4,11 +4,9 @@ module Infix (eliminateInfix) where
 import qualified Data.Map as Map
 
 import Common
+import Infix.Types
 import Syntax
 import Syntax.Traverse
-
-data Fixity = Fixity InfixAssoc Integer 
-  deriving (Show)
 
 type M = ReaderT (Env Fixity) FM
 
@@ -23,22 +21,17 @@ cmp (Fixity a1 n1) (Fixity a2 n2) =
     _ -> Nothing
   else Just $ compare n1 n2
 
-minimumByM :: (Monad m) => (a -> a -> m Ordering) -> [a] -> m a
-minimumByM = f $ error "Empty list"
+pick :: [IN] -> FM (IN, ([IN], [IN]))
+pick xs = minimumByM f $ zip xs $ splits xs
   where
-    f acc _ [] = return acc
-    f acc c (x : xs) = do
-      o <- c acc x
-      case o of
-        LT -> f x c xs
-        _ -> f acc c xs
+    f a b = case cmp (inFixity ^$ a') (inFixity ^$ b') of
+      Nothing -> fatal $ incomparableErr a' b'
+      Just o -> return o
+      where
+        a' = fst a
+        b' = fst b
 
-pick :: [(BindName, Fixity)] -> FM BindName
-pick = (fmap fst .) $ minimumByM $ \p1@(_, f1) p2@(_, f2) -> case cmp f1 f2 of
-  Nothing -> fatal $ incomparableErr p1 p2
-  Just o -> return o
-
-incomparableErr :: (BindName, Fixity) -> (BindName, Fixity) -> Err
+incomparableErr :: IN -> IN -> Err
 incomparableErr = todo
 
 elimTraversal :: Traversal Fixity FM
@@ -73,54 +66,12 @@ unboundErr :: (BindName, Fixity) -> Err
 unboundErr = todo
 
 elimExpr :: Expr t -> M (Expr t)
-elimExpr = todo
-{-
-elimExpr (Lam a bs e) =
-  Lam a bs <$> with (zip (map binderName bs) (repeat defFixity)) (elimExpr e)
-elimExpr (App a fn args) = App a <$> elimExpr fn <*> mapM elimExpr args
-elimExpr (Record a ds) = Record a <$> mapM elimDecl ds
-elimExpr e@(Ref _ _) = return e
-elimExpr (Member a e n) = Member a <$> elimExpr e <*> pure n
+-- TODO make the IN list, pick the place to split at, recurse on the two halves,
+-- and put them together as the arguments to an App node with the op as the function
+--
+-- TODO think a bit about the various edge cases that will make the IN structure
+-- difficult to work with - there's the section case and the full application case,
+-- for one thing
 elimExpr (OpChain _ _ _) = todo pick
-elimExpr (Let a ds body) =
-  withDecls ds $ Let a <$> mapM elimDecl ds <*> elimExpr body
-elimExpr e@(ToDo _) = return e
-elimExpr (LamCase a cs) = LamCase a <$> mapM elimCaseClause cs
-elimExpr (Case a scru cs) = Case a <$> elimExpr scru <*> mapM elimCaseClause cs
-elimExpr (Do a es) = Do a <$> elimDo es
-elimExpr e@(Lit _ _) = return e
--}
-
-elimDecl :: Decl t -> M (Decl t)
-elimDecl = todo
-{-
-    Constraint :: Expr Ty -> TyCompOp -> Expr Ty -> Decl Ty
-    ValField   :: BindName -> Expr Ty -> Decl Ty
-    TyField    :: BindName -> Maybe TyBound -> Decl Ty
-    ModField   :: BindName -> Expr Ty -> Decl Ty
-    -- TODO: Combine BindLocal and BindVal when the necessary predicate
-    -- (TyTag t ~ Ty) is supported by Template Haskell.
-    BindLocal  :: Binding Val -> Decl Val
-    BindVal    :: Binding Val -> Decl Mod
-    BindMod    :: Binding Mod -> Decl Mod
-    BindSig    :: Binding Ty -> Decl Mod
-    BindTy     :: Binding Ty -> Decl Mod
-    Infix      :: InfixAssoc -> Integer -> [BindName] -> Decl Mod
-    Data       :: DataMode -> BindName -> Maybe (Expr Ty) -> Expr Ty -> [Decl Mod]
-               -> Decl Mod
--}
-
-elimCaseClause :: CaseClause -> M CaseClause
-elimCaseClause = todo
-{-
-    CaseClause Pat (Expr Val)
--}
-
-elimDo :: [DoElem] -> M [DoElem]
-elimDo = todo
-{-
-    DoLet [Decl Val]
-    DoBind Pat (Expr Val)
-    DoExpr (Expr Val)
--}
+elimExpr e = return e
 
