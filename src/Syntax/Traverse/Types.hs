@@ -8,6 +8,17 @@ import qualified Data.Map as Map
 import Common
 import Syntax.Types
 
+data Context = CtxAny | CtxMod | CtxVal | CtxModTy | CtxValTy | CtxKind
+  deriving (Eq, Ord, Show)
+
+tyOfCtx :: Context -> Context
+tyOfCtx CtxMod = CtxModTy
+tyOfCtx CtxVal = CtxValTy
+tyOfCtx CtxModTy = CtxKind
+tyOfCtx CtxValTy = CtxKind
+tyOfCtx CtxAny = error "tyOfCtx CtxAny"
+tyOfCtx CtxKind = error "tyOfCtx CtxKind"
+
 type BindMap e = Map BindName e
 
 data Env e =
@@ -15,10 +26,11 @@ data Env e =
   { _ePath  :: [BindName]
   , _eScope :: BindMap e
   , _eBinds :: BindMap e
+  , _eCtx   :: Context
   } deriving (Eq, Ord, Show)
 
 emptyEnv :: Env e
-emptyEnv = Env [] Map.empty Map.empty
+emptyEnv = Env [] Map.empty Map.empty CtxMod
 
 type R e m = ReaderT (Env e) m
 

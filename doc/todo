@@ -2,19 +2,20 @@
 TO-DO
 =====
 
+Get rid of nested data declarations
+
 Finish the infix analysis phase using the generic traversal
 
-Should the traversal of nested data declarations treat them as if they were not
-nested?
+Generalize the Field decls with something like Binding
 
-See if we can generalize the Field decls the same way we did the Binds with Binding
+Try writing an all-in-one type-checker
+
+Write the module type-checker
 
 Write QuickCheck tests
 
   It should be fairly simple to generate arbitrary syntax trees and arbitrary lexical
   environments
-
-Write the module type-checker
 
 Write the type type-checker
 

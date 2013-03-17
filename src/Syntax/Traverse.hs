@@ -39,29 +39,36 @@ layer2 getEditor arg monad = do
 pushBind :: (MonadReader (Env e, t) m) => BindName -> m a -> m a
 pushBind name = local $ (ePath . fstLens) ^%= (name :)
 
+inCtx :: (MonadReader (Env e, t) m) => Context -> m a -> m a
+inCtx = local . (eCtx . fstLens ^=)
+
+inTyOfCtx :: (MonadReader (Env e, t) m) => m a -> m a
+inTyOfCtx = local $ eCtx . fstLens ^%= tyOfCtx
+
 mapDecl :: (C m) => Decl t -> M e m (Decl t)
 mapDecl = layer onDecl . \case
+  -- TODO context
   Constraint ann a o b ->
     Constraint ann <$> mapExpr a <*> pure o <*> mapExpr b
-  ValField a n e -> do
+  ValField a n e -> inCtx CtxVal $ do
     n' <- mapNameBind n
-    pushBind n' $ ValField a n' <$> mapExpr e
-  TyField a n ty -> do
+    pushBind n' $ ValField a n' <$> (inTyOfCtx $ mapExpr e)
+  TyField a n ty -> inCtx CtxValTy $ do
     n' <- mapNameBind n
     pushBind n' $ TyField a n' <$> ty'
     where
       ty' = case ty of
         Nothing -> pure Nothing
         Just (TyBound a o e) -> Just . TyBound a o <$> mapExpr e
-  ModField a n e -> do
+  ModField a n e -> inCtx CtxMod $ do
     n' <- mapNameBind n
-    pushBind n' $ ModField a n' <$> mapExpr e
-  BindLocal a b -> BindLocal a <$> mapBinding b
-  BindMod a b -> BindMod a <$> mapBinding b
-  BindSig a b -> BindSig a <$> mapBinding b
-  BindVal a b -> BindVal a <$> mapBinding b
-  BindTy a b -> BindTy a <$> mapBinding b
-  Data a m n p t ds -> do
+    pushBind n' $ ModField a n' <$> (inTyOfCtx $ mapExpr e)
+  BindLocal a b -> inCtx CtxVal $ BindLocal a <$> mapBinding b
+  BindMod a b -> inCtx CtxMod $ BindMod a <$> mapBinding b
+  BindSig a b -> inCtx CtxModTy $ BindSig a <$> mapBinding b
+  BindVal a b -> inCtx CtxVal $ BindVal a <$> mapBinding b
+  BindTy a b -> inCtx CtxValTy $ BindTy a <$> mapBinding b
+  Data a m n p t ds -> inCtx CtxValTy $ do
     n' <- mapNameBind n
     pushBind n' $ do
       p'  <- maybe (return Nothing) (fmap Just . mapExpr) p
@@ -71,12 +78,7 @@ mapDecl = layer onDecl . \case
   Infix ann a p ns -> Infix ann a p <$> mapM mapNameRef ns
 
 mapBinding :: (C m) => Binding k -> M e m (Binding k)
-mapBinding = layer onBinding . \case
-  Binding (Binder n t) e -> do
-    n' <- mapNameBind n
-    pushBind n' $ do
-      t' <- maybe (return Nothing) (fmap Just . mapExpr) t
-      Binding (Binder n' t') <$> mapExpr e
+mapBinding (Binding b e) = layer onBinding $ Binding <$> mapBinder b <*> mapExpr e
 
 mapNameRef :: (C m) => BindName -> M e m BindName
 mapNameRef = layer onNameRef . return
@@ -88,8 +90,8 @@ mapBinders :: (C m) => [Binder k] -> M e m [Binder k]
 mapBinders = mapM mapBinder
 
 mapBinder :: (C m) => Binder k -> M e m (Binder k)
-mapBinder = layer onBinder . \case
-  Binder name ty -> Binder <$> mapNameBind name <*> mapM mapExpr ty
+mapBinder (Binder name ty) =
+  layer onBinder $ Binder <$> mapNameBind name <*> (inTyOfCtx $ mapM mapExpr ty)
 
 makeRecEnv :: forall e m t. (C m) => [Decl t] -> M e m (Env e)
 makeRecEnv ds = do
@@ -123,7 +125,7 @@ mapExpr = \case
   e -> layer onExpr $ case e of
     App a f as -> App a <$> mapExpr f <*> mapM mapExpr as
     Ref a n -> Ref a <$> mapNameRef n
-    Member a e n -> Member a <$> mapExpr e <*> pure n
+    Member a e n -> inCtx CtxAny $ Member a <$> mapExpr e <*> pure n
     OpChain a e os -> OpChain a <$> mapM mapExpr e <*> mapM f os
       where
         f (a, b) = (,) <$> mapExpr a <*> mapExpr b
