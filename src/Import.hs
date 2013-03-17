@@ -21,7 +21,7 @@ module Import
   , module Prelude
   ) where
 
-import Control.Applicative (Applicative(..), (<$>))
+import Control.Applicative
 import Control.Category
 import Control.Monad hiding (forM, mapM, sequence)
 import Control.Monad.Identity hiding (forM, mapM, sequence)

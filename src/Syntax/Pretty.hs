@@ -101,7 +101,7 @@ instance Pretty (Decl t) SyntaxKind where
     tt $ show prec
     mapM_ tokens bs
     semi
-  tokens (Data _ mode name parent ty kids) = do
+  tokens (Data _ mode name parent ty) = do
     tt "data"
     when (mode == DataOpen) $ tt "open"
     tokens name
@@ -109,9 +109,7 @@ instance Pretty (Decl t) SyntaxKind where
     case ty of
       Lit _ TyEmpty -> return ()
       _ -> tt "is" >> tokens ty
-    case kids of
-      [] -> semi
-      _  -> tellBrackets "{" "}" $ mapM_ tokens kids
+    semi
 
 instance Pretty TyCompOp SyntaxKind where
   tokens op = t1 SKOper $ case op of

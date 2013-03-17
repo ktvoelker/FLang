@@ -11,7 +11,7 @@ namespace _ = NsValues
 allowInCycles :: Decl t -> Bool
 allowInCycles (BindLocal _ _) = True
 allowInCycles (BindVal _ _) = True
-allowInCycles (Data _ _ _ _ _ _) = True
+allowInCycles (Data _ _ _ _ _) = True
 allowInCycles _ = False
 
 binderName :: Binder t -> BindName
@@ -40,7 +40,7 @@ instance Binds (Decl t) where
   binds (BindVal _ b) = [bindingName b]
   binds (BindTy _ b) = [bindingName b]
   binds (Infix _ _ _ _) = []
-  binds (Data _ _ n _ _ ds) = n : concatMap binds ds
+  binds (Data _ _ n _ _) = [n]
 
 instance Binds Pat where
   binds (PatParams _ ps) = ps >>= binds

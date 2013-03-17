@@ -86,8 +86,7 @@ annotateExcept ["Binder", "Binding"] [d|
     BindSig    :: Binding Ty -> Decl Mod
     BindTy     :: Binding Ty -> Decl Mod
     Infix      :: InfixAssoc -> Integer -> [BindName] -> Decl Mod
-    Data       :: DataMode -> BindName -> Maybe (Expr Ty) -> Expr Ty -> [Decl Mod]
-               -> Decl Mod
+    Data       :: DataMode -> BindName -> Maybe (Expr Ty) -> Expr Ty -> Decl Mod
 
   data Binding t = Binding (Binder t) (Expr t)
 

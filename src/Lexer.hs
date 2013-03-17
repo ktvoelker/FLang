@@ -1,7 +1,7 @@
 
 module Lexer (tokenize) where
 
-import Text.Parsec
+import Text.Parsec hiding ((<|>), many, optional)
 import Text.Parsec.String
 
 import Common
@@ -24,7 +24,7 @@ file = do
   eof
   return . concat $ xs
 
-skippable = optional . many1 $ comment <|> (space >> return ())
+skippable = void . optional . many1 $ comment <|> (space >> return ())
 
 tok = keywords <|> choice [ident, exprOp, litInt, litFloat, litString, litChar]
 
@@ -73,7 +73,7 @@ comment :: Parser ()
 comment = do
   _ <- string "//"
   _ <- many . noneOf $ "\n\r"
-  optional . char $ '\r'
+  void . optional . char $ '\r'
   (char '\n' >> return ()) <|> eof
 
 escapeCodes =

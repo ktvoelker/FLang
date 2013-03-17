@@ -68,13 +68,12 @@ mapDecl = layer onDecl . \case
   BindSig a b -> inCtx CtxModTy $ BindSig a <$> mapBinding b
   BindVal a b -> inCtx CtxVal $ BindVal a <$> mapBinding b
   BindTy a b -> inCtx CtxValTy $ BindTy a <$> mapBinding b
-  Data a m n p t ds -> inCtx CtxValTy $ do
+  Data a m n p t -> inCtx CtxValTy $ do
     n' <- mapNameBind n
     pushBind n' $ do
       p'  <- maybe (return Nothing) (fmap Just . mapExpr) p
       t'  <- mapExpr t
-      ds' <- mapM mapDecl ds
-      return $ Data a m n' p' t' ds'
+      return $ Data a m n' p' t'
   Infix ann a p ns -> Infix ann a p <$> mapM mapNameRef ns
 
 mapBinding :: (C m) => Binding k -> M e m (Binding k)
