@@ -41,30 +41,16 @@ pick = (fmap fst .) $ minimumByM $ \p1@(_, f1) p2@(_, f2) -> case cmp f1 f2 of
 incomparableErr :: (BindName, Fixity) -> (BindName, Fixity) -> Err
 incomparableErr = todo
 
-elimTraversal :: Traversal Fixity M
+elimTraversal :: Traversal Fixity FM
 elimTraversal =
   (emptyTraversal (makeScope []) makeScope)
   { onExpr       = elimExpr
   }
 
-makeScope :: BindMap a -> M (BindMap Fixity)
-makeScope = todo
-
-eliminateInfix :: Global -> FM Global
-eliminateInfix = (gRoot ^%%= flip runReaderT Map.empty . mapProgram elimTraversal)
-
-with :: (MonadReader InfixEnv m) => [(BindName, Fixity)] -> m a -> m a
-with = local . Map.union . Map.fromList
-
-fixities :: Decl t -> [(BindName, Fixity)]
-fixities (Infix _ a n names) = map (, Fixity a n) names
-fixities _ = []
-
-unboundErr :: (BindName, Fixity) -> Err
-unboundErr = todo
-
-withDecls :: [Decl t] -> M a -> M a
-withDecls ds m = mapM_ (lift . report . unboundErr) bad >> with pairs m
+makeScope :: [Decl t] -> BindMap a -> M (BindMap Fixity)
+makeScope ds _ = do
+  mapM_ (lift . report . unboundErr) bad
+  return $ Map.fromList pairs
   where
     bs = concatMap binds ds
     defs, good, bad, pairs :: [(BindName, Fixity)]
@@ -75,6 +61,16 @@ withDecls ds m = mapM_ (lift . report . unboundErr) bad >> with pairs m
     -- Map.fromList takes the last list element with a particular key, so the list
     -- of defaults has to precede the list of declared fixities.
     pairs = defs ++ good
+
+eliminateInfix :: Program -> FM Program
+eliminateInfix = mapProgram elimTraversal
+
+fixities :: Decl t -> [(BindName, Fixity)]
+fixities (Infix _ a n names) = map (, Fixity a n) names
+fixities _ = []
+
+unboundErr :: (BindName, Fixity) -> Err
+unboundErr = todo
 
 elimExpr :: Expr t -> M (Expr t)
 elimExpr = todo

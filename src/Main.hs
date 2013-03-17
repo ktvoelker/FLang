@@ -3,7 +3,7 @@ module Main where
 
 import Common
 import Common.IO
---import Infix
+import Infix
 import Lexer
 import Parser
 import Pretty
@@ -25,13 +25,13 @@ parsePhase = lexPhase' >=> mapM (uncurry parse)
 
 renamePhase = parsePhase >=> rename . mkRecord
 
---infixPhase = renamePhase >=> eliminateInfix
+infixPhase = renamePhase >=> eliminateInfix
 
 phases =
   [ ("lex", runPhase $ lexPhase >=> return . concatMap ppShow)
   , ("parse", runPhase $ parsePhase >=> return . concatMap pretty)
   , ("rename", runPhase $ renamePhase >=> return . pretty)
-  --, ("infix", runPhase $ infixPhase >=> return . pretty)
+  , ("infix", runPhase $ infixPhase >=> return . pretty)
   ]
 
 getInput xs = fmap (xs,) $ case xs of
