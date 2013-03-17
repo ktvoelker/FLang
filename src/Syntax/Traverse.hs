@@ -1,6 +1,14 @@
 
 module Syntax.Traverse
-  ( BindMap, Env(..), ePath, eBinds, eScope, Traversal(..), emptyTraversal, mapProgram
+  ( BindMap
+  , Env(..)
+  , ePath
+  , eBinds
+  , eScope
+  , Traversal(..)
+  , emptyTraversal
+  , mapProgram
+  , asksName
   ) where
 
 import qualified Data.Map as Map
@@ -169,4 +177,9 @@ mapDo (DoBind a p v : xs) = do
     $ (:) <$> (layer onDoElem $ DoBind a p' <$> mapExpr v) <*> mapDo xs
 mapDo (DoExpr a e : xs) =
   (:) <$> (layer onDoElem $ DoExpr a <$> mapExpr e) <*> mapDo xs
+
+asksName :: (MonadReader (Env e) m) => BindName -> m (Maybe e)
+asksName n = do
+  m <- asks _eScope
+  return $ Map.lookup n m
 
