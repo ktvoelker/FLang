@@ -133,7 +133,7 @@ mapExpr = \case
     App a f as -> App a <$> mapExpr f <*> mapM mapExpr as
     Ref a n -> Ref a <$> mapNameRef n
     Member a e n -> inCtx CtxAny $ Member a <$> mapExpr e <*> pure n
-    OpChain a e os -> OpChain a <$> mapM mapExpr e <*> mapM f os
+    OpChain a e os o -> OpChain a <$> mapM mapExpr e <*> mapM f os <*> mapM mapExpr o
       where
         f (a, b) = (,) <$> mapExpr a <*> mapExpr b
     e@ToDo{} -> return e

@@ -131,11 +131,13 @@ instance Pretty (Expr t) SyntaxKind where
   tokens (Member _ e names) = do
     tokens e
     mapM_ (\name -> t1 SKOper "." >> tokens name) names
-  tokens (OpChain _ x xs) = f $ mapM_ (\(o, e) -> tokens o >> tokens e) xs
+  tokens (OpChain _ x xs o) = f $ mapM_ (\(o, e) -> tokens o >> tokens e) xs
     where
-      f = case x of
-        Nothing -> tellBrackets "(" ")"
-        Just x  -> (tokens x >>)
+      f = case (x, o) of
+        (Nothing, Nothing) -> tellBrackets "(" ")"
+        (Nothing, Just o) -> tellBrackets "(" ")" . (>> tokens o)
+        (Just x, Nothing) -> (tokens x >>)
+        (Just x, Just o) -> tellBrackets "(" ")" . (tokens x >>) . (>> tokens o)
   tokens (Let _ ds e) = tellBrackets "(" ")" $ do
     tt "let"
     tellBrackets "{" "}" $ mapM_ tokens ds

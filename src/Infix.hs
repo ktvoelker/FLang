@@ -66,11 +66,17 @@ unboundErr :: (BindName, Fixity) -> Err
 unboundErr = todo
 
 elimExpr :: Expr t -> M (Expr t)
-elimExpr (OpChain _ h ts) = prepare h ts >>= appTree
+elimExpr (OpChain _ h ts t) = prepare h ts t >>= appTree
 elimExpr e = return e
 
-prepare :: Maybe (Expr t) -> [(Expr t, Expr t)] -> M [IN t]
-prepare h ts = do
+-- TODO we should identify sections in the prep phase, generate names, and return the
+-- generated names in the order they should be bound (outer to inner). Then elimExpr
+-- can call appTree on a list that always starts and ends with IA, and then wrap the
+-- result in Lams as necessary for the section vars.
+--
+-- TODO first fix the parser to support right sections (like (3 +))
+prepare :: Maybe (Expr t) -> [(Expr t, Expr t)] -> Maybe (Expr t) -> M [IN t]
+prepare h ts t = do
   h' <- mapM prepArg (maybeToList h)
   ts' <- mapM (\(o, a) -> sequence [prepOp o, prepArg a]) ts
   return $ h' ++ concat ts'
@@ -84,9 +90,6 @@ prepare h ts = do
     prepOp _ = impossible "Unexpected expression in prepOp"
 
 appTree :: [IN t] -> M (Expr t)
---   1. Treat the values in between the operators as separate list items, but make
---   sure that the precedence checks can never choose a value to split on.
---
 --   2. The base case is a one-element list, which will always be just a value - so
 --   just return that value expression.
 --
@@ -94,5 +97,6 @@ appTree :: [IN t] -> M (Expr t)
 --   empty. If so, it has to generate a section rather than recursing on the empty
 --   list. If the left side is empty, generate \x -> o x r; if the right side is empty,
 --   generate \x -> o l x (or just o l).
-appTree = todo pick
+appTree [] = todo
+appTree [IA a] = return a
 

@@ -195,9 +195,9 @@ valOp = tok "operator" $ \case
 
 expr :: String -> Parser (Expr t) -> Parser (Expr t) -> Parser (Expr t)
 expr descr op prim =
-  mkOpChain <$> (Just <$> exprApp prim) <*> (many $ exprOp op prim)
+  mkOpChain <$> (Just <$> exprApp prim) <*> (many $ exprOp op prim) <*> optionMaybe op
   <|>
-  mkOpChain Nothing <$> (many1 $ exprOp op prim)
+  mkOpChain Nothing <$> (many1 $ exprOp op prim) <*> optionMaybe op
   <?>
   descr
 

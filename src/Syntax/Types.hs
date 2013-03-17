@@ -62,7 +62,7 @@ annotateExcept ["Binder", "Binding"] [d|
     Record    :: [Decl t] -> Expr t
     Ref       :: BindName -> Expr t
     Member    :: Expr t -> [BindName] -> Expr t
-    OpChain   :: Maybe (Expr t) -> [(Expr t, Expr t)] -> Expr t
+    OpChain   :: Maybe (Expr t) -> [(Expr t, Expr t)] -> Maybe (Expr t) -> Expr t
     Let       :: [Decl t] -> Expr t -> Expr t
     ToDo      :: Expr t
     LamCase   :: [CaseClause] -> Expr Val
