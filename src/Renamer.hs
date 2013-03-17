@@ -26,9 +26,6 @@ renameTraversal =
 rename :: Program -> FM Program
 rename = evalStateT (rsProgram %>>= mapProgram renameTraversal) . emptyRenamerState
 
-allocUnique :: (MonadState RenamerState m) => m Integer
-allocUnique = rsNextUnique %= (+ 1)
-
 insertRef :: Integer -> M ()
 insertRef n = do
   path <- asks (ePath ^$)
@@ -62,7 +59,7 @@ renameNameBind :: BindName -> M BindName
 renameNameBind = renameNameFrom eBinds
 
 makeScope :: BindMap a -> M (BindMap Integer)
-makeScope = mapM (const allocUnique)
+makeScope = mapM (const $ lift2 nextUnique)
 
 renameSortDecls :: [Decl t] -> M [Decl t]
 renameSortDecls ds = do

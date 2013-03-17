@@ -1,5 +1,14 @@
 
-module Monad (ErrType(..), Err(..), fatal, report, internal, FM(), runFM) where
+module Monad
+  ( ErrType(..)
+  , Err(..)
+  , fatal
+  , report
+  , internal
+  , FM()
+  , nextUnique
+  , runFM
+  ) where
 
 import Control.Monad.Writer
 import Text.Parsec.Pos (SourcePos())
@@ -19,7 +28,14 @@ data Err =
   , errMore      :: Maybe String
   } deriving (Show)
 
-newtype FM a = FM { getFM :: Writer [Err] (Maybe a) }
+data FMState =
+  FMState
+  { fmNextUnique :: Integer
+  }
+
+emptyFMState = FMState 0
+
+newtype FM a = FM { getFM :: StateT FMState (Writer [Err]) (Maybe a) }
 
 fatal :: Err -> FM a
 fatal = (>> mzero) . report
@@ -57,6 +73,13 @@ instance MonadWriter [Err] FM where
       f Nothing = (Nothing, id)
       f (Just (a, f)) = (Just a, f)
 
+nextUnique :: FM Integer
+nextUnique = FM $ do
+  s <- get
+  let u = fmNextUnique s
+  put $ s { fmNextUnique = u + 1 }
+  return $ Just u
+
 runFM :: FM a -> (Maybe a, [Err])
-runFM = runWriter . getFM
+runFM = runWriter . flip evalStateT emptyFMState . getFM
 

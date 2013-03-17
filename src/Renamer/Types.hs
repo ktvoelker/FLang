@@ -11,13 +11,12 @@ import Syntax.Traverse.Types
 
 data RenamerState =
   RenamerState
-  { _rsNextUnique :: Integer
-  , _rsRefs       :: BindMap (Set Integer)
+  { _rsRefs       :: BindMap (Set Integer)
   , _rsProgram    :: Program
   }
 
 emptyRenamerState :: Program -> RenamerState
-emptyRenamerState = RenamerState 0 Map.empty
+emptyRenamerState = RenamerState Map.empty
 
 makeLenses [''RenamerState]
 
