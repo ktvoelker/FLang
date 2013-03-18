@@ -1,10 +1,9 @@
 
 module ordStuff is rec {
 
-  data Bool {
-    False is *;
-    True is *;
-  }
+  data Bool;
+  data False <: Bool is *;
+  data True <: Bool is *;
 
   val (=): Ordering -> Ordering -> Bool
   is fn {

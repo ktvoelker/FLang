@@ -32,7 +32,13 @@ pick xs = minimumByM f $ zip xs $ splits xs
       Just o -> return o
 
 incomparableErr :: Fixity -> BindName -> Fixity -> BindName -> Err
-incomparableErr = todo
+incomparableErr f1 b1 f2 b2 =
+  Err
+  { errType = EFixityMismatch
+  , errSourcePos = Nothing -- TODO
+  , errName = Nothing
+  , errMore = Just $ show ((f1, b1), (f2, b2))
+  }
 
 elimTraversal :: Traversal Fixity FM
 elimTraversal =
@@ -63,7 +69,13 @@ fixities (Infix _ a n names) = map (, Fixity a n) names
 fixities _ = []
 
 unboundErr :: (BindName, Fixity) -> Err
-unboundErr = todo
+unboundErr (b, f) =
+  Err
+  { errType = EOrphanFixity
+  , errSourcePos = Nothing -- TODO
+  , errName = Just b
+  , errMore = Just $ show f
+  }
 
 elimExpr :: Expr t -> M (Expr t)
 elimExpr (OpChain _ h ts t) = do

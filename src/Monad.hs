@@ -17,7 +17,9 @@ import Import
 import Syntax.Types (BindName())
 import Util
 
-data ErrType = EUnknown | ELexer | EParser | EInternal | EUnbound | ECircRef
+data ErrType =
+    EUnknown | ELexer | EParser | EInternal | EUnbound | ECircRef
+  | EFixityMismatch | EOrphanFixity
   deriving (Eq, Ord, Enum, Bounded, Show)
 
 data Err =
