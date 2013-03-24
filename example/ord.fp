@@ -5,6 +5,14 @@ module ordStuff is rec {
   data False <: Bool is *;
   data True <: Bool is *;
 
+  val (*): Bool is True;
+  val (++): Bool is True;
+  val Pair: Bool is True;
+  val Cons: Bool is True;
+  val Nil: Bool is True;
+  val partition: Bool is True;
+  val List: Bool is True;
+
   val (=): Ordering -> Ordering -> Bool
   is fn {
     if LT LT then True;

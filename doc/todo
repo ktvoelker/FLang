@@ -2,10 +2,6 @@
 TO-DO
 =====
 
-Debug the infix analysis phase
-
-  Need to fix unbound names in the example to keep testing
-
 Generalize the Field decls with something like Binding
 
 Try writing an all-in-one type-checker
