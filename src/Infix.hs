@@ -5,21 +5,21 @@ import qualified Data.Map as Map
 
 import Common
 import Infix.Types
+import Pretty
 import Syntax
 import Syntax.Traverse
 
 type M = ReaderT (Env Fixity) FM
 
-defFixity = Fixity InfixLeft 100
+defFixity = Fixity InfixLeft User 100
 
 cmp :: Fixity -> Fixity -> Maybe Ordering
-cmp (Fixity a1 n1) (Fixity a2 n2) =
-  if n1 == n2
-  then case (a1, a2) of
+cmp (Fixity a1 r1 n1) (Fixity a2 r2 n2) = case compare (r1, n1) (r2, n2) of
+  EQ -> case (a1, a2) of
     (InfixLeft, InfixLeft) -> Just LT
     (InfixRight, InfixRight) -> Just GT
     _ -> Nothing
-  else Just $ compare n1 n2
+  o -> Just o
 
 pick :: [IN t] -> FM (IN t, ([IN t], [IN t]))
 pick xs = minimumByM f $ zip xs $ splits xs
@@ -27,17 +27,17 @@ pick xs = minimumByM f $ zip xs $ splits xs
     f ((IA _), _) ((IA _), _) = return EQ
     f ((IA _), _) ((IO _ _), _) = return GT
     f ((IO _ _), _) ((IA _), _) = return LT
-    f ((IO fa na), _) ((IO fb nb), _) = case cmp fa fb of
-      Nothing -> fatal $ incomparableErr fa na fb nb
+    f ((IO fa ea), _) ((IO fb eb), _) = case cmp fa fb of
+      Nothing -> fatal $ incomparableErr fa ea fb eb
       Just o -> return o
 
-incomparableErr :: Fixity -> BindName -> Fixity -> BindName -> Err
-incomparableErr f1 b1 f2 b2 =
+incomparableErr :: Fixity -> Expr t -> Fixity -> Expr t -> Err
+incomparableErr f1 e1 f2 e2 =
   Err
   { errType = EFixityMismatch
   , errSourcePos = Nothing -- TODO
   , errName = Nothing
-  , errMore = Just $ show ((f1, b1), (f2, b2))
+  , errMore = Just $ show f1 ++ " " ++ pretty e1 ++ "; " ++ show f2 ++ " " ++ pretty e2
   }
 
 elimTraversal :: Traversal Fixity FM
@@ -65,7 +65,7 @@ eliminateInfix :: Program -> FM Program
 eliminateInfix = mapProgram elimTraversal
 
 fixities :: Decl t -> [(BindName, Fixity)]
-fixities (Infix _ a n names) = map (, Fixity a n) names
+fixities (Infix _ a n names) = map (, Fixity a User n) names
 fixities _ = []
 
 unboundErr :: (BindName, Fixity) -> Err
@@ -108,12 +108,13 @@ prepare h ts t = do
   return (vh ++ vt, mr vh ++ h' ++ concat ts' ++ t' ++ mr vt)
   where
     prepArg = return . IA
-    prepOp (Ref _ n) = do
+    prepOp e@(Ref _ n) = do
       f <- asksName n
       case f of
-        Nothing -> impossible "Unbound name in prepOp"
-        Just f -> return $ IO f n
-    prepOp _ = impossible "Unexpected expression in prepOp"
+        Nothing -> impossible $ "Unbound name in prepOp: " ++ pretty n
+        Just f -> return $ IO f e
+    prepOp e@(Lit _ TyFn) = return $ IO (Fixity InfixRight SystemLow 0) e
+    prepOp e = impossible $ "Unexpected expression in prepOp: " ++ pretty e
     mr = map $ IA . Ref emptyAnn
     sectionVar = do
       n <- nextUnique
@@ -130,10 +131,10 @@ appTree [] = impossible "Empty list in appTree"
 appTree [IA a] = return a
 appTree [IO _ _] = impossible "List of one operator in appTree"
 appTree xs = do
-  (o, (hs, ts)) <- lift $ pick xs
+  r@(o, (hs, ts)) <- lift $ pick xs
   case o of
-    IO _ n -> do
+    IO _ e -> do
       args <- sequence [appTree hs, appTree ts]
-      return $ App emptyAnn (Ref emptyAnn n) args
-    IA _ -> impossible "Split on an argument in appTree"
+      return $ App emptyAnn e args
+    IA _ -> impossible $ "Split on an argument in appTree: " ++ show r
 

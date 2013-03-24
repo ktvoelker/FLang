@@ -70,11 +70,12 @@ splits = f emptyAppendList emptyAppendList
         acc' = appendElem (realizeList h, ts) acc
 
 minimumByM :: (Monad m) => (a -> a -> m Ordering) -> [a] -> m a
-minimumByM = f $ error "Empty list"
+minimumByM _ [] = error "minimumByM: Empty list"
+minimumByM c (x : xs) = f x c xs
   where
     f acc _ [] = return acc
     f acc c (x : xs) = do
-      o <- c acc x
+      o <- c x acc
       case o of
         LT -> f x c xs
         _ -> f acc c xs

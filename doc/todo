@@ -2,7 +2,9 @@
 TO-DO
 =====
 
-Finish the infix analysis phase using the generic traversal
+Debug the infix analysis phase
+
+  Need to fix unbound names in the example to keep testing
 
 Generalize the Field decls with something like Binding
 
